@@ -1,0 +1,8 @@
+fastapi[all]
+uvicorn
+sqlmodel
+PyYAML
+mypy
+ruff
+pytest
+pytest-cov
