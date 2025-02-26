@@ -10,6 +10,9 @@
 	// 	"ghcr.io/devcontainers-community/npm-features/typescript:1": {}
 	// }
 
+	// Workaround for GIT inside DEV container.
+	"mounts": ["type=bind,source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,readonly"],
+
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 

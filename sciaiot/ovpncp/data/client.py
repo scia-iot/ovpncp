@@ -1,46 +1,85 @@
 from datetime import datetime
-from typing import List
+from typing import Sequence
 
-from sqlmodel import Field, Session, SQLModel, select
+from sqlmodel import Field, Relationship, Session, SQLModel, select
 
 
 class Client(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True) 
     name: str
-    ip: str
-    created_time: datetime = None
-    expired_time: datetime = None
-    renewed_time: datetime | None = None
+    created_time: datetime | None = None
+    expired_time: datetime | None = None
+    updated_time: datetime | None = None
+    
+    virtual_address_id: int | None = Field(default=None, foreign_key="virtualaddress.id")
+    connections: list["Connection"] = Relationship(back_populates="client", cascade_delete=True)
 
-def create(client_to_create: Client, session: Session) -> Client:
+def create_client(client_to_create: Client, session: Session) -> Client:
+    client_to_create.created_time = datetime.now()
+    
     session.add(client_to_create)
     session.commit()
     session.refresh(client_to_create)
     
     return client_to_create
 
-def read(client_id: int, session: Session) -> Client:
-    client = session.exec(select(Client).filter(Client.id == client_id)).first()
+def retrieve_client(client_id: int, session: Session) -> Client:
+    statement = select(Client).where(Client.id == client_id)
+    client = session.exec(statement).one()
     return client
 
-def read_all(session: Session) -> List[Client]:
+def retrieve_clients(session: Session) -> Sequence[Client]:
     clients = session.exec(select(Client)).all()
     return clients
 
-def update(client_id: int, client: Client, session: Session) -> Client:
-    client_to_update = read(client_id, session)
-    client_data = client.model_dump(exclude_unset=True)
-        
-    for key, value in client_data.items():
-        setattr(client_to_update, key, value)
+def update_client(client: Client, session: Session) -> Client:
+    client.updated_time = datetime.now()
     
-    session.add(client_to_update)
+    session.add(client)
     session.commit()
-    session.refresh(client_to_update)
+    session.refresh(client)
     
-    return client_to_update
+    return client
 
-def delete(client_id: int, session: Session):
-    client = read(client_id, session)
+def delete_client(client_id: int, session: Session):
+    client = retrieve_client(client_id, session)
     session.delete(client)
+    session.commit()
+
+
+class Connection(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    remote_address: str
+    connected_time: datetime
+    disconnected_time: datetime | None = None
+    
+    client_id: int | None = Field(default=None, foreign_key="client.id")
+    client: Client| None = Relationship(back_populates="connections")
+
+def create_connection(connection: Connection, session: Session) -> Connection:
+    session.add(connection)
+    session.commit()
+    session.refresh(connection)
+    
+    return connection
+
+def retrieve_connection(connection_id: int, session: Session) -> Connection:
+    statement = select(Connection).where(Connection.id == connection_id)
+    connection = session.exec(statement).one()
+    return connection
+
+def retrieve_connections(session: Session) -> Sequence[Connection]:
+    connections = session.exec(select(Connection)).all()
+    return connections
+
+def update_connection(connection: Connection, session: Session) -> Connection:   
+    session.add(connection)
+    session.commit()
+    session.refresh(connection)
+    
+    return connection
+
+def delete_connection(connection_id: int, session: Session):
+    connection = retrieve_connection(connection_id, session)
+    session.delete(connection)
     session.commit()
