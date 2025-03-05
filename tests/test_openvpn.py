@@ -1,7 +1,13 @@
 from unittest.mock import MagicMock, mock_open, patch
 
-from sciaiot.ovpncp.utils.openvpn import add_client, build_client, get_server_config, get_status, list_clients, list_connections
-
+from sciaiot.ovpncp.utils.openvpn import (
+    assign_client_ip,
+    build_client,
+    get_server_config,
+    get_status,
+    list_clients,
+    list_connections,
+)
 
 server_config_lines = """
 # This file is for the server side              #
@@ -313,6 +319,7 @@ verb 3
 explicit-exit-notify 1
 """
 
+
 @patch("builtins.open", new_callable=mock_open, read_data=server_config_lines)
 def test_get_server_config(mock_run):
     configs = get_server_config()
@@ -321,87 +328,95 @@ def test_get_server_config(mock_run):
 
     mock_run.assert_called_with("/etc/openvpn/server.conf", "r")
 
-@patch("subprocess.run")
-def test_get_status_active(mock_run):
-    mocked_stdout = """
+
+server_status_active = """
 ● openvpn@server.service - OpenVPN connection to server
     Loaded: loaded (/usr/lib/systemd/system/openvpn@.service; enabled; preset: enabled)
     Active: active (running) since Mon 2025-01-13 08:15:17 UTC; 15s ago
     """
-    mock_run.return_value = MagicMock(stdout=mocked_stdout)
-        
+
+
+@patch("subprocess.run", return_value=MagicMock(stdout=server_status_active))
+def test_get_status_active(mock_run):
     status = get_status()
     assert status is not None
     assert status["status"] == "active (running)"
     assert status["time"] == "Mon 2025-01-13 08:15:17 UTC"
     assert status["period"] == "15s"
-    
-    mock_run.assert_called_once_with(["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
 
-@patch("subprocess.run")
-def test_get_status_inactive(mock_run):
-    mocked_stdout = """
+    mock_run.assert_called_once_with(
+        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
+
+
+server_status_inactive = """
 ○ openvpn@server.service - OpenVPN connection to server
     Loaded: loaded (/usr/lib/systemd/system/openvpn@.service; enabled; preset: enabled)
     Active: inactive (dead) since Mon 2025-01-13 08:16:12 UTC; 29s ago
     """
-    mock_run.return_value = MagicMock(stdout=mocked_stdout)
 
+
+@patch("subprocess.run", return_value=MagicMock(stdout=server_status_inactive))
+def test_get_status_inactive(mock_run):
     status = get_status()
     assert status is not None
     assert status["status"] == "inactive (dead)"
     assert status["time"] == "Mon 2025-01-13 08:16:12 UTC"
     assert status["period"] == "29s"
-        
-    mock_run.assert_called_once_with(["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
-    
+
+    mock_run.assert_called_once_with(
+        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
+
+
 @patch("subprocess.run")
 def test_get_status_wrong(mock_run):
     mock_run.return_value = MagicMock(stdout="")
-    
+
     status = get_status()
     assert status is not None
     assert status["status"] == "N/A"
-        
-    mock_run.assert_called_once_with(["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
-    
+
+    mock_run.assert_called_once_with(
+        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
+
 
 @patch("subprocess.run")
 def test_build_client(mock_run):
     mock_run.return_value = MagicMock(returncode=0)
-    
+
     success = build_client("succeed")
-    assert success is True    
-        
+    assert success is True
+
     mock_run.assert_called_once_with([
-        "cd", "/etc/openvpn/easy-rsa/", 
-        "&&", 
+        "cd", "/etc/openvpn/easy-rsa/",
+        "&&",
         "./easyrsa", "--batch", "build-client-full", "succeed", "nopass"
     ], capture_output=True, text=True, check=True)
-    
+
+
 @patch("subprocess.run")
 def test_build_client_fail(mock_run):
     mock_run.return_value = MagicMock(returncode=1)
-    
+
     success = build_client("succeed")
-    assert success is False   
-        
+    assert success is False
+
     mock_run.assert_called_once_with([
-        "cd", "/etc/openvpn/easy-rsa/", 
-        "&&", 
+        "cd", "/etc/openvpn/easy-rsa/",
+        "&&",
         "./easyrsa", "--batch", "build-client-full", "succeed", "nopass"
     ], capture_output=True, text=True, check=True)
-    
+
 
 client_lines = """
 client_1,10.8.0.2,
 client_2,10.8.0.3,
 plc_1,10.8.0.4,
 plc_2,10.8.0.5,
-"""    
-    
+"""
+
+
 @patch("builtins.open", new_callable=mock_open, read_data=client_lines)
-def test_list_clients(mock_run):        
+def test_list_clients(mock_run):
     clients = list_clients()
 
     assert clients is not None
@@ -410,22 +425,25 @@ def test_list_clients(mock_run):
     assert clients[1] == {"name": "client_2", "ip": "10.8.0.3"}
     assert clients[2] == {"name": "plc_1", "ip": "10.8.0.4"}
     assert clients[3] == {"name": "plc_2", "ip": "10.8.0.5"}
-        
+
     mock_run.assert_called_with("/var/log/openvpn/ipp.txt", "r")
+
 
 @patch("builtins.open", new_callable=mock_open, read_data="")
 def test_list_clients_empty(mock_run):
     clients = list_clients()
-    
+
     assert clients is not None
     assert len(clients) == 0
-        
+
     mock_run.assert_called_with("/var/log/openvpn/ipp.txt", "r")
 
+
 @patch("builtins.open", new_callable=mock_open, read_data="")
-def test_add_client(mock_run):
-    add_client("client_3", "10.8.0.6")
+def test_assign_client_ip(mock_run):
+    assign_client_ip("client_3", "10.8.0.6")
     mock_run.assert_called_with("/var/log/openvpn/ipp.txt", "a")
+
 
 connection_lines = """
 OpenVPN CLIENT LIST
@@ -451,10 +469,12 @@ GLOBAL STATS
 Max bcast/mcast queue length,0
 END
 """
+
+
 @patch("builtins.open", new_callable=mock_open, read_data=connection_lines)
 def test_list_connections(mock_run):
     connections = list_connections()
-    
+
     assert connections is not None
     assert len(connections) == 2
     assert connections[0] == {
@@ -469,14 +489,15 @@ def test_list_connections(mock_run):
         "remote_address": "172.205.176.208:60374",
         "connected_time": "2025-01-14 06:04:34"
     }
-    
+
     mock_run.assert_called_with("/var/log/openvpn/openvpn-status.log", "r")
-    
+
+
 @patch('builtins.open', new_callable=mock_open, read_data=connection_lines_empty)
 def test_connection_with_empty_output(mock_run):
     connections = list_connections()
-    
+
     assert connections is not None
     assert len(connections) == 0
-    
+
     mock_run.assert_called_with("/var/log/openvpn/openvpn-status.log", "r")
