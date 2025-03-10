@@ -292,7 +292,7 @@ status /var/log/openvpn/openvpn-status.log
 
 # By default, log messages will go to the syslog (or
 # on Windows, if running as a service, they will go to
-# the "\Program Files\OpenVPN\log" directory).
+# the "\\Program Files\\OpenVPN\\log" directory).
 # Use log or log-append to override this default.
 # "log" will truncate the log file on OpenVPN startup,
 # while "log-append" will append to it.  Use one
