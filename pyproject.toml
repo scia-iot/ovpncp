@@ -1,10 +1,28 @@
-[tool.mypy]
-python_version = "3.12"
-disallow_untyped_defs = true
-disallow_any_unimported = true
-disallow_incomplete_defs = true
-strict_equality = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-pretty = true
-show_error_codes = true
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ovpncp"
+version = "0.1.0"
+description = "OpenVPN Control Panel for Restricted Network."
+authors = [{ name = "Nick Yao", email = "ipaddict@outlook.com" }]
+dependencies = [
+    "fastapi[all]",
+    "sqlmodel",
+    "uvicorn",
+    "PyYAML",
+    "mypy",
+]
+
+[project.scripts]
+ovpncp = "sciaiot.ovpncp.main:run"
+
+[tool.setuptools.packages.find]
+exclude = [
+    "*tests.*",
+    "*tests"
+]
+
+[tool.setuptools.package-data]
+sciaiot = ["**/*.yml", "**/*.sh"]
