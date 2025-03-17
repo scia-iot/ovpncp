@@ -192,6 +192,8 @@ def test_create_restricted_network_fail(mock_get_client_by_name, client: TestCli
               "destination_client_name": "N/A"}
     )
     assert response.status_code == 412
+    
+    assert mock_get_client_by_name.call_count == 2
 
 
 def test_close_connection(client: TestClient):
