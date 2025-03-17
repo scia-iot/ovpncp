@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -25,6 +26,9 @@ class ServerBase(SQLModel):
     log: str
     verb: str
     explicit_exit_notify: str
+    script_security: str | None = None
+    client_connect: str | None = None
+    client_disconnect: str | None = None
 
 
 class Server(ServerBase, table=True):
@@ -52,6 +56,7 @@ class ServerWithVirtualAddresses(ServerBase):
 
 class ClientBase(SQLModel):
     name: str
+    revoked: bool = False
 
 
 class Client(ClientBase, table=True):
@@ -61,8 +66,23 @@ class Client(ClientBase, table=True):
         default=None, foreign_key="virtualaddress.id", unique=True)
     virtual_address: Optional["VirtualAddress"] = Relationship(
         back_populates="client")
+    cert: Optional["Cert"] = Relationship(
+        back_populates="client", cascade_delete=True)
     connections: list["Connection"] = Relationship(
         back_populates="client", cascade_delete=True)
+
+
+class CertBase(SQLModel):
+    issued_by: str
+    issued_to: str
+    issued_on: datetime
+    expires_on: datetime
+
+
+class Cert(CertBase, table=True):
+    id: int = Field(default=None, primary_key=True)
+    client_id: int = Field(default=None, foreign_key="client.id")
+    client: Client = Relationship(back_populates="cert")
 
 
 class ConnectionBase(SQLModel):
@@ -83,4 +103,5 @@ class ClientWithVirtualAddress(ClientBase):
 
 class ClientDetails(ClientBase):
     virtual_address: VirtualAddressBase
+    cert: CertBase
     connections: list[ConnectionBase] = []

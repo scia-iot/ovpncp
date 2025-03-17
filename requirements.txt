@@ -1,8 +1,11 @@
+cryptography
 fastapi[all]
-uvicorn
-sqlmodel
 PyYAML
+sqlmodel
+uvicorn
+
+# Check & Test
 mypy
-ruff
 pytest
 pytest-cov
+ruff

@@ -1,5 +1,9 @@
+import importlib.resources
 import logging
 import os
+from pathlib import Path
+import shutil
+
 from sqlmodel import Session, SQLModel, create_engine
 
 logger = logging.getLogger(__name__)
@@ -15,6 +19,16 @@ def create_app_directory():
         os.makedirs(app_directory)
         logger.info(f"Created the app directory: {app_directory}")
 
+
+def copy_scripts():
+    target_folder = Path(f'{app_directory}/scripts')
+    
+    with importlib.resources.path("sciaiot.ovpncp", "scripts") as source_path:
+        if target_folder.exists():
+            shutil.rmtree(target_folder)
+            
+        shutil.copytree(source_path, target_folder)
+        logger.info("Copied scripts to the app directory.")
 
 def get_session():
     with Session(engine) as session:
