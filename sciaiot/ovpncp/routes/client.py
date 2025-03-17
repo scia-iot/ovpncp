@@ -65,29 +65,32 @@ async def retrieve_client(client_name: str, session: DBSession):
 @router.put("/{client_name}/renew-cert", response_model=CertBase)
 async def renew_client_cert(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
-    cert_details = openvpn.renew_client_cert(client.name)
-    cert = Cert(**cert_details)
-    cert.client = client
-    
-    session.add(cert)
-    session.commit()
-    session.refresh(cert)
-    
-    return cert
+    cert = client.cert
+
+    if cert is not None:
+        cert_details = openvpn.renew_client_cert(client.name)
+        for key, value in cert_details.items():
+            setattr(cert, key, value)
+
+        session.add(cert)
+        session.commit()
+        session.refresh(cert)
+
+        return cert
 
 
 @router.put("/{client_name}/revoke", response_model=ClientBase)
 async def revoke_client(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
     client.revoked = True
-    
+
     openvpn.revoke_client(client.name)
     openvpn.generate_crl()
-    
+
     session.add(client)
     session.commit()
     session.refresh(client)
-    
+
     return client
 
 

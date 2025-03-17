@@ -82,7 +82,7 @@ class CertBase(SQLModel):
 class Cert(CertBase, table=True):
     id: int = Field(default=None, primary_key=True)
     client_id: int = Field(default=None, foreign_key="client.id")
-    client: Client = Relationship(back_populates="cert")
+    client: Client = Relationship(sa_relationship_kwargs={'uselist': False}, back_populates="cert")
 
 
 class ConnectionBase(SQLModel):
