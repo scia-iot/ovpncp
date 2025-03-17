@@ -1,12 +1,19 @@
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, mock_open, patch
+import zipfile
 
 from sciaiot.ovpncp.utils.openvpn import (
     assign_client_ip,
     build_client,
+    generate_crl,
     get_server_config,
     get_status,
     list_clients,
     list_connections,
+    package_client_certs,
+    read_client_cert,
+    renew_client_cert,
+    revoke_client,
 )
 
 server_config_lines = """
@@ -317,16 +324,20 @@ verb 3
 # Notify the client that when the server restarts so it
 # can automatically reconnect.
 explicit-exit-notify 1
+
+client-connect /opt/ovpncp/client-connect.sh
+client-disconnect /opt/ovpncp/client-disconnect.sh
+script-security 2
 """
 
 
 @patch("builtins.open", new_callable=mock_open, read_data=server_config_lines)
-def test_get_server_config(mock_run):
+def test_get_server_config(mock_open):
     configs = get_server_config()
     assert configs is not None
-    assert len(configs) == 18
+    assert len(configs) == 21
 
-    mock_run.assert_called_with("/etc/openvpn/server.conf", "r")
+    mock_open.assert_called_with("/etc/openvpn/server.conf", "r")
 
 
 server_status_active = """
@@ -345,7 +356,7 @@ def test_get_status_active(mock_run):
     assert status["period"] == "15s"
 
     mock_run.assert_called_once_with(
-        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
+        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=False)
 
 
 server_status_inactive = """
@@ -364,7 +375,7 @@ def test_get_status_inactive(mock_run):
     assert status["period"] == "29s"
 
     mock_run.assert_called_once_with(
-        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
+        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=False)
 
 
 @patch("subprocess.run")
@@ -376,35 +387,156 @@ def test_get_status_wrong(mock_run):
     assert status["status"] == "N/A"
 
     mock_run.assert_called_once_with(
-        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=True)
+        ["systemctl", "status", "openvpn@server"], capture_output=True, text=True, check=False)
 
 
-@patch("subprocess.run")
+@patch("subprocess.run", return_value=MagicMock(returncode=0))
 def test_build_client(mock_run):
-    mock_run.return_value = MagicMock(returncode=0)
-
-    success = build_client("succeed")
+    success = build_client("client")
     assert success is True
 
-    mock_run.assert_called_once_with([
-        "cd", "/etc/openvpn/easy-rsa/",
-        "&&",
-        "./easyrsa", "--batch", "build-client-full", "succeed", "nopass"
-    ], capture_output=True, text=True, check=True)
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch build-client-full client nopass", 
+        cwd="/etc/openvpn/easy-rsa", 
+        shell=True, capture_output=True, text=True, check=True
+    )
 
 
-@patch("subprocess.run")
+@patch("subprocess.run", return_value=MagicMock(returncode=1))
 def test_build_client_fail(mock_run):
-    mock_run.return_value = MagicMock(returncode=1)
-
-    success = build_client("succeed")
+    success = build_client("client")
     assert success is False
 
-    mock_run.assert_called_once_with([
-        "cd", "/etc/openvpn/easy-rsa/",
-        "&&",
-        "./easyrsa", "--batch", "build-client-full", "succeed", "nopass"
-    ], capture_output=True, text=True, check=True)
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch build-client-full client nopass", 
+        cwd="/etc/openvpn/easy-rsa", 
+        shell=True, capture_output=True, text=True, check=True
+    )
+
+
+cert_content = """
+-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJALb2Z6Z6Z6Z6MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+...
+-----END CERTIFICATE-----
+"""
+
+
+@patch('builtins.open', new_callable=mock_open, read_data=cert_content)
+@patch('cryptography.x509.load_pem_x509_certificate')
+def test_read_client_cert_success(mock_load_cert, mock_open):
+    mock_cert = MagicMock()
+    mock_cert.not_valid_before = datetime.now()
+    mock_cert.not_valid_after = datetime.now() + timedelta(days=365)
+    mock_cert.subject.get_attributes_for_oid.return_value = [MagicMock(value="client_name")]
+    mock_cert.issuer.get_attributes_for_oid.return_value = [MagicMock(value="CA_name")]
+    mock_load_cert.return_value = mock_cert
+
+    result = read_client_cert("client_name")
+    assert result is not None
+    assert result["issued_to"] == "client_name"
+    assert result["issued_by"] == "CA_name"
+    assert result["issued_on"] == mock_cert.not_valid_before
+    assert result["expires_on"] == mock_cert.not_valid_after
+    
+    mock_open.assert_called_once_with("/etc/openvpn/easy-rsa/pki/issued/client_name.crt", "rb")
+    mock_load_cert.assert_called_once()
+
+
+@patch('builtins.open', side_effect=FileNotFoundError)
+def test_read_client_cert_file_not_found(mock_open):
+    result = read_client_cert("non_existent_client")
+    assert result == {}
+    mock_open.assert_called_once_with("/etc/openvpn/easy-rsa/pki/issued/non_existent_client.crt", "rb")
+    
+
+@patch('builtins.open', new_callable=mock_open, read_data="Invalid certificate content")
+@patch('cryptography.x509.load_pem_x509_certificate', side_effect=ValueError("Invalid certificate"))
+def test_read_client_cert_invalid_certificate(mock_load_cert, mock_open):
+    result = read_client_cert("invalid_client")
+    assert result == {}
+    mock_open.assert_called_once_with("/etc/openvpn/easy-rsa/pki/issued/invalid_client.crt", "rb")
+    mock_load_cert.assert_called_once()
+
+
+@patch('zipfile.ZipFile', return_value=MagicMock())
+def test_package_client_certs(mock_zipfile):    
+    package_client_certs(name='test_client', output_dir='/path/to/output_dir')
+    mock_zipfile.assert_called_once_with('/path/to/output_dir/test_client.zip', 'w', zipfile.ZIP_DEFLATED)
+
+
+@patch("sciaiot.ovpncp.utils.openvpn.read_client_cert", return_value={})
+@patch("subprocess.run", return_value=MagicMock(returncode=0))
+def test_renew_client_cert(mock_run, mock_read_client_cert):
+    cert_details = renew_client_cert("client")
+    assert cert_details == {}
+    
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch revoke-renewed client", 
+        cwd="/etc/openvpn/easy-rsa", 
+        shell=True, capture_output=True, text=True, check=True
+    )
+    mock_read_client_cert.assert_called_once_with("client")
+
+
+@patch("subprocess.run", return_value=MagicMock(returncode=1))
+def test_renew_client_cert_fail(mock_run):
+    cert_details = renew_client_cert("client")
+    assert cert_details == {}
+    
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch revoke-renewed client", 
+        cwd="/etc/openvpn/easy-rsa", 
+        shell=True, capture_output=True, text=True, check=True
+    )
+
+
+@patch("subprocess.run", return_value=MagicMock(returncode=0))
+def test_revoke_client_cert(mock_run):
+    result = revoke_client("test_client")
+    assert result is True
+
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch revoke test_client", 
+        cwd="/etc/openvpn/easy-rsa", 
+        shell=True, capture_output=True, text=True, check=True
+    )
+
+
+@patch("subprocess.run", return_value=MagicMock(returncode=1))
+def test_revoke_client_cert_fail(mock_run):
+    result = revoke_client("test_client")
+    assert result is False
+
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch revoke test_client", 
+        cwd="/etc/openvpn/easy-rsa", 
+        shell=True, capture_output=True, text=True, check=True
+    )
+
+
+@patch("subprocess.run", return_value=MagicMock(returncode=0))
+def test_generate_crl(mock_run):
+    success = generate_crl()
+    assert success is True
+    
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch gen-crl", 
+        cwd="/etc/openvpn/easy-rsa",   
+        shell=True, capture_output=True, text=True, check=True
+    )
+
+
+@patch("subprocess.run", return_value=MagicMock(returncode=1))
+def test_generate_crl_fail(mock_run):
+    success = generate_crl()
+    assert success is False
+    
+    mock_run.assert_called_once_with(
+        "./easyrsa --batch gen-crl", 
+        cwd="/etc/openvpn/easy-rsa",   
+        shell=True, capture_output=True, text=True, check=True
+    )
 
 
 client_lines = """
@@ -416,7 +548,7 @@ plc_2,10.8.0.5,
 
 
 @patch("builtins.open", new_callable=mock_open, read_data=client_lines)
-def test_list_clients(mock_run):
+def test_list_clients(mock_open):
     clients = list_clients()
 
     assert clients is not None
@@ -426,23 +558,23 @@ def test_list_clients(mock_run):
     assert clients[2] == {"name": "plc_1", "ip": "10.8.0.4"}
     assert clients[3] == {"name": "plc_2", "ip": "10.8.0.5"}
 
-    mock_run.assert_called_with("/var/log/openvpn/ipp.txt", "r")
+    mock_open.assert_called_with("/var/log/openvpn/ipp.txt", "r")
 
 
 @patch("builtins.open", new_callable=mock_open, read_data="")
-def test_list_clients_empty(mock_run):
+def test_list_clients_empty(mock_open):
     clients = list_clients()
 
     assert clients is not None
     assert len(clients) == 0
 
-    mock_run.assert_called_with("/var/log/openvpn/ipp.txt", "r")
+    mock_open.assert_called_with("/var/log/openvpn/ipp.txt", "r")
 
 
 @patch("builtins.open", new_callable=mock_open, read_data="")
-def test_assign_client_ip(mock_run):
+def test_assign_client_ip(mock_open):
     assign_client_ip("client_3", "10.8.0.6")
-    mock_run.assert_called_with("/var/log/openvpn/ipp.txt", "a")
+    mock_open.assert_called_with("/var/log/openvpn/ipp.txt", "a")
 
 
 connection_lines = """
@@ -472,7 +604,7 @@ END
 
 
 @patch("builtins.open", new_callable=mock_open, read_data=connection_lines)
-def test_list_connections(mock_run):
+def test_list_connections(mock_open):
     connections = list_connections()
 
     assert connections is not None
@@ -490,14 +622,14 @@ def test_list_connections(mock_run):
         "connected_time": "2025-01-14 06:04:34"
     }
 
-    mock_run.assert_called_with("/var/log/openvpn/openvpn-status.log", "r")
+    mock_open.assert_called_with("/var/log/openvpn/openvpn-status.log", "r")
 
 
 @patch('builtins.open', new_callable=mock_open, read_data=connection_lines_empty)
-def test_connection_with_empty_output(mock_run):
+def test_connection_with_empty_output(mock_open):
     connections = list_connections()
 
     assert connections is not None
     assert len(connections) == 0
 
-    mock_run.assert_called_with("/var/log/openvpn/openvpn-status.log", "r")
+    mock_open.assert_called_with("/var/log/openvpn/openvpn-status.log", "r")

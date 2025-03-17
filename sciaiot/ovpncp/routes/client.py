@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from sciaiot.ovpncp.data.server import (
+    Cert,
+    CertBase,
     Client,
     ClientBase,
     ClientDetails,
@@ -31,19 +33,24 @@ class CloseConnectionRequest(BaseModel):
     disconnected_time: datetime
 
 
-@router.post("/")
+@router.post("")
 async def create_client(request: ClientBase, session: DBSession):
     client = Client.model_validate(request)
     openvpn.build_client(client.name)
-
+    
+    cert_details = openvpn.read_client_cert(client.name)
+    cert = Cert(**cert_details)
+    cert.client = client
+    
     session.add(client)
+    session.add(cert)
     session.commit()
     session.refresh(client)
-
+    
     return client
 
 
-@router.get("/")
+@router.get("")
 async def retrieve_clients(session: DBSession):
     clients = session.exec(select(Client)).all()
     return clients
@@ -55,11 +62,39 @@ async def retrieve_client(client_name: str, session: DBSession):
     return client
 
 
+@router.put("/{client_name}/renew-cert", response_model=CertBase)
+async def renew_client_cert(client_name: str, session: DBSession):
+    client = get_client_by_name(client_name, session)
+    cert_details = openvpn.renew_client_cert(client.name)
+    cert = Cert(**cert_details)
+    cert.client = client
+    
+    session.add(cert)
+    session.commit()
+    session.refresh(cert)
+    
+    return cert
+
+
+@router.put("/{client_name}/revoke", response_model=ClientBase)
+async def revoke_client(client_name: str, session: DBSession):
+    client = get_client_by_name(client_name, session)
+    client.revoked = True
+    
+    openvpn.revoke_client(client.name)
+    openvpn.generate_crl()
+    
+    session.add(client)
+    session.commit()
+    session.refresh(client)
+    
+    return client
+
+
 @router.put("/{client_name}", response_model=ClientWithVirtualAddress)
 async def assign_virtual_address(client_name: str, address: VirtualAddressBase, session: DBSession):
     statement = select(VirtualAddress).where(VirtualAddress.ip == address.ip)
     virtual_address = session.exec(statement).one_or_none()
-
     if not virtual_address:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -67,7 +102,6 @@ async def assign_virtual_address(client_name: str, address: VirtualAddressBase, 
 
     client = get_client_by_name(client_name, session)
     client.virtual_address = virtual_address
-
     openvpn.assign_client_ip(client.name, virtual_address.ip)
 
     session.add(client)
@@ -105,6 +139,7 @@ async def close_connection(client_name: str, request: CloseConnectionRequest, se
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Connection with client '{client_name}' from '{request.remote_address}' not found")
+
     connection.disconnected_time = request.disconnected_time
 
     session.add(connection)

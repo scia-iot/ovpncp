@@ -20,21 +20,15 @@ class RestrictedNetworkRequest(BaseModel):
     destination_client_name: str
 
 
-@router.post("/")
+@router.post("")
 async def create_restricted_network(request: RestrictedNetworkRequest, session: DBSession):
     source = get_client_by_name(request.source_client_name, session)
     destination = get_client_by_name(request.destination_client_name, session)
 
-    if not source.virtual_address:
+    if not source.virtual_address or not destination.virtual_address:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
-            detail=f"Virtual address of source client {source.name} not assigned"
-        )
-
-    if not destination.virtual_address:
-        raise HTTPException(
-            status_code=status.HTTP_412_PRECONDITION_FAILED,
-            detail=f"Virtual address of destination client {destination.name} not assigned"
+            detail="Virtual address must be assigned to both source and destination client!"
         )
 
     network = RestrictedNetwork(
@@ -56,7 +50,7 @@ async def create_restricted_network(request: RestrictedNetworkRequest, session: 
     return network
 
 
-@router.get("/")
+@router.get("")
 async def retrieve_restricted_networks(client_id: int, session: DBSession):
     statement = select(RestrictedNetwork).where(
         RestrictedNetwork.client_id == client_id)

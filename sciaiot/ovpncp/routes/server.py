@@ -16,7 +16,7 @@ DBSession = Annotated[Session, Depends(get_session)]
 router = APIRouter()
 
 
-@router.post("/", response_model=ServerWithVirtualAddresses)
+@router.post("", response_model=ServerWithVirtualAddresses)
 async def init_server(session: DBSession):
     server = load_from_config()
 
@@ -27,7 +27,7 @@ async def init_server(session: DBSession):
     return server
 
 
-@router.get("/")
+@router.get("")
 async def get_server(session: DBSession):
     server = session.exec(select(Server)).one_or_none()
 
