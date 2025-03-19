@@ -33,8 +33,8 @@ class ServerBase(SQLModel):
 
 class Server(ServerBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    virtual_addresses: list["VirtualAddress"] = Relationship(
-        back_populates="server")
+    virtual_addresses: list['VirtualAddress'] = Relationship(
+        back_populates='server')
 
 
 class VirtualAddressBase(SQLModel):
@@ -43,11 +43,11 @@ class VirtualAddressBase(SQLModel):
 
 class VirtualAddress(VirtualAddressBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    ip: str = Field(sa_column=Column("ip", String, unique=True))
-    server_id: int = Field(default=None, foreign_key="server.id")
-    server: Server = Relationship(back_populates="virtual_addresses")
-    client: Optional["Client"] = Relationship(
-        sa_relationship_kwargs={'uselist': False}, back_populates="virtual_address")
+    ip: str = Field(sa_column=Column('ip', String, unique=True))
+    server_id: int = Field(default=None, foreign_key='server.id')
+    server: Server = Relationship(back_populates='virtual_addresses')
+    client: Optional['Client'] = Relationship(
+        sa_relationship_kwargs={'uselist': False}, back_populates='virtual_address')
 
 
 class ServerWithVirtualAddresses(ServerBase):
@@ -61,15 +61,15 @@ class ClientBase(SQLModel):
 
 class Client(ClientBase, table=True):
     id: int = Field(default=None, primary_key=True)
-    name: str = Field(sa_column=Column("name", String, unique=True))
+    name: str = Field(sa_column=Column('name', String, unique=True))
     virtual_address_id: Optional[int] = Field(
-        default=None, foreign_key="virtualaddress.id", unique=True)
-    virtual_address: Optional["VirtualAddress"] = Relationship(
-        back_populates="client")
-    cert: Optional["Cert"] = Relationship(
-        back_populates="client", cascade_delete=True)
-    connections: list["Connection"] = Relationship(
-        back_populates="client", cascade_delete=True)
+        default=None, foreign_key='virtualaddress.id', unique=True)
+    virtual_address: Optional['VirtualAddress'] = Relationship(
+        back_populates='client')
+    cert: Optional['Cert'] = Relationship(
+        back_populates='client', cascade_delete=True)
+    connections: list['Connection'] = Relationship(
+        back_populates='client', cascade_delete=True)
 
 
 class CertBase(SQLModel):
@@ -81,8 +81,8 @@ class CertBase(SQLModel):
 
 class Cert(CertBase, table=True):
     id: int = Field(default=None, primary_key=True)
-    client_id: int = Field(default=None, foreign_key="client.id")
-    client: Client = Relationship(sa_relationship_kwargs={'uselist': False}, back_populates="cert")
+    client_id: int = Field(default=None, foreign_key='client.id')
+    client: Client = Relationship(sa_relationship_kwargs={'uselist': False}, back_populates='cert')
 
 
 class ConnectionBase(SQLModel):
@@ -93,15 +93,15 @@ class ConnectionBase(SQLModel):
 
 class Connection(ConnectionBase, table=True):
     id: int = Field(default=None, primary_key=True)
-    client_id: int = Field(default=None, foreign_key="client.id")
-    client: Client = Relationship(back_populates="connections")
+    client_id: int = Field(default=None, foreign_key='client.id')
+    client: Client = Relationship(back_populates='connections')
 
 
 class ClientWithVirtualAddress(ClientBase):
-    virtual_address: VirtualAddress
+    virtual_address: VirtualAddress | None
 
 
 class ClientDetails(ClientBase):
-    virtual_address: VirtualAddressBase
+    virtual_address: VirtualAddressBase | None
     cert: CertBase
     connections: list[ConnectionBase] = []

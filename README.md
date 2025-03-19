@@ -44,3 +44,11 @@ Check the health of OpenVPN server:
 ```shell
 curl -X GET http://127.0.0.1:8000/server/health
 ```
+
+### About Restricted Network
+
+IMPORTANT: make sure drop all forwarding by default:
+
+```shell
+sudo iptables -A FORWARD -i tun0 -j DROP
+```

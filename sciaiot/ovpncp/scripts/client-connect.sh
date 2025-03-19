@@ -18,13 +18,13 @@ EOF
 
 # Send the POST request using curl
 curl -X POST \
-    -H "Content-Type: application/json" \
+    -H 'Content-Type: application/json' \
     -d "$JSON_PAYLOAD" \
-    "http://127.0.0.1/clients/$CLIENT_NAME/connections"
+    "http://127.0.0.1:8000/clients/${CLIENT_NAME}/connections"
 
 # Optional: Add error handling
 if [ $? -ne 0 ]; then
-    echo "Error sending POST request." >&2 # Send error to stderr
+    echo 'Error sending POST request.' >&2 # Send error to stderr
     exit 1 # Indicate failure
 fi
 

@@ -25,7 +25,7 @@ def test_list_rules(mock_run):
 def test_apply_rules(mock_run):
     rules = ['-i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT',
              '-i tun0 -s 10.8.0.3 -d 10.8.0.3 -j ACCEPT']
-    shell_command = "iptables -I FORWARD 1 -i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT && iptables -I FORWARD 2 -i tun0 -s 10.8.0.3 -d 10.8.0.3 -j ACCEPT"
+    shell_command = 'iptables -I FORWARD 1 -i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT && iptables -I FORWARD 2 -i tun0 -s 10.8.0.3 -d 10.8.0.3 -j ACCEPT'
 
     apply_rules('FORWARD', 1, rules)
 
@@ -36,7 +36,7 @@ def test_apply_rules(mock_run):
 def test_drop_rules(mock_run):
     rules = ['-i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT',
              '-i tun0 -s 10.8.0.3 -d 10.8.0.3 -j ACCEPT']
-    shell_command = "iptables -D FORWARD -i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT && iptables -D FORWARD -i tun0 -s 10.8.0.3 -d 10.8.0.3 -j ACCEPT"
+    shell_command = 'iptables -D FORWARD -i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT && iptables -D FORWARD -i tun0 -s 10.8.0.3 -d 10.8.0.3 -j ACCEPT'
 
     drop_rules('FORWARD', rules)
 
