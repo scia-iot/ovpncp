@@ -1,10 +1,13 @@
 from datetime import datetime
+import os
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from sciaiot.ovpncp import dependencies
 from sciaiot.ovpncp.data.server import (
     Cert,
     CertBase,
@@ -33,7 +36,7 @@ class CloseConnectionRequest(BaseModel):
     disconnected_time: datetime
 
 
-@router.post("")
+@router.post('')
 async def create_client(request: ClientBase, session: DBSession):
     client = Client.model_validate(request)
     openvpn.build_client(client.name)
@@ -50,19 +53,34 @@ async def create_client(request: ClientBase, session: DBSession):
     return client
 
 
-@router.get("")
+@router.get('')
 async def retrieve_clients(session: DBSession):
     clients = session.exec(select(Client)).all()
     return clients
 
 
-@router.get("/{client_name}", response_model=ClientDetails)
+@router.get('/{client_name}', response_model=ClientDetails)
 async def retrieve_client(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
     return client
 
 
-@router.put("/{client_name}/renew-cert", response_model=CertBase)
+@router.put('/{client_name}/package-cert', status_code=201)
+async def package_client_cert(client_name: str, session: DBSession):
+    client = get_client_by_name(client_name, session)
+    archive = openvpn.package_client_cert(client.name, dependencies.certs_directory)
+    return { 'file': archive }
+
+
+@router.get('/{client_name}/download-cert')
+async def download_client_cert(client_name: str, session: DBSession):
+    client = get_client_by_name(client_name, session)
+    file_name = f'{client.name}.zip'
+    file_path = os.path.join(dependencies.certs_directory, file_name)
+    return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
+
+
+@router.put('/{client_name}/renew-cert', response_model=CertBase)
 async def renew_client_cert(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
     cert = client.cert
@@ -79,7 +97,7 @@ async def renew_client_cert(client_name: str, session: DBSession):
         return cert
 
 
-@router.put("/{client_name}/revoke", response_model=ClientBase)
+@router.put('/{client_name}/revoke', response_model=ClientBase)
 async def revoke_client(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
     client.revoked = True
@@ -94,14 +112,15 @@ async def revoke_client(client_name: str, session: DBSession):
     return client
 
 
-@router.put("/{client_name}", response_model=ClientWithVirtualAddress)
+@router.put('/{client_name}/assign-ip', response_model=ClientWithVirtualAddress)
 async def assign_virtual_address(client_name: str, address: VirtualAddressBase, session: DBSession):
     statement = select(VirtualAddress).where(VirtualAddress.ip == address.ip)
     virtual_address = session.exec(statement).one_or_none()
+    
     if not virtual_address:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Virtual address with IP '{address.ip}' not found")
+            detail=f'Virtual address with IP "{address.ip}" not found')
 
     client = get_client_by_name(client_name, session)
     client.virtual_address = virtual_address
@@ -114,7 +133,26 @@ async def assign_virtual_address(client_name: str, address: VirtualAddressBase, 
     return client
 
 
-@router.post("/{client_name}/connections")
+@router.delete('/{client_name}/unassign-ip', response_model=ClientWithVirtualAddress)
+async def unassign_virtual_address(client_name: str, session: DBSession):
+    client = get_client_by_name(client_name, session)
+    
+    if not client.virtual_address:
+        raise HTTPException(
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+            detail=f'Client "{client_name}" has no virtual address assigned')
+
+    openvpn.unassign_client_ip(client.name, client.virtual_address.ip)
+    client.virtual_address = None
+    
+    session.add(client)
+    session.commit()
+    session.refresh(client)
+    
+    return client
+
+
+@router.post('/{client_name}/connections')
 async def start_connection(client_name: str, request: StartConnectionRequest, session: DBSession):
     client = get_client_by_name(client_name, session)
     connection = Connection(
@@ -130,7 +168,7 @@ async def start_connection(client_name: str, request: StartConnectionRequest, se
     return connection
 
 
-@router.put("/{client_name}/connections")
+@router.put('/{client_name}/connections')
 async def close_connection(client_name: str, request: CloseConnectionRequest, session: DBSession):
     client = get_client_by_name(client_name, session)
     statement = select(Connection).where(
@@ -141,7 +179,7 @@ async def close_connection(client_name: str, request: CloseConnectionRequest, se
     if not connection:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Connection with client '{client_name}' from '{request.remote_address}' not found")
+            detail=f'Connection with client "{client_name}" from "{request.remote_address}" not found')
 
     connection.disconnected_time = request.disconnected_time
 
@@ -159,6 +197,6 @@ def get_client_by_name(client_name: str, session: Session) -> Client:
     if not client:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Client '{client_name}' not found")
+            detail=f'Client "{client_name}" not found')
 
     return client

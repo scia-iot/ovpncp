@@ -20,7 +20,7 @@ class RestrictedNetworkRequest(BaseModel):
     destination_client_name: str
 
 
-@router.post("")
+@router.post('')
 async def create_restricted_network(request: RestrictedNetworkRequest, session: DBSession):
     source = get_client_by_name(request.source_client_name, session)
     destination = get_client_by_name(request.destination_client_name, session)
@@ -28,7 +28,7 @@ async def create_restricted_network(request: RestrictedNetworkRequest, session: 
     if not source.virtual_address or not destination.virtual_address:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
-            detail="Virtual address must be assigned to both source and destination client!"
+            detail='Virtual address must be assigned to both source and destination client!'
         )
 
     network = RestrictedNetwork(
@@ -39,7 +39,7 @@ async def create_restricted_network(request: RestrictedNetworkRequest, session: 
     )
 
     # add those rules before the final one on iptables
-    chain = "FORWARD"
+    chain = 'FORWARD'
     rules = iptables.list_rules(chain)
     iptables.apply_rules(chain, len(rules), network.iptable_rules())
 
@@ -50,7 +50,7 @@ async def create_restricted_network(request: RestrictedNetworkRequest, session: 
     return network
 
 
-@router.get("")
+@router.get('')
 async def retrieve_restricted_networks(client_id: int, session: DBSession):
     statement = select(RestrictedNetwork).where(
         RestrictedNetwork.client_id == client_id)
@@ -58,7 +58,7 @@ async def retrieve_restricted_networks(client_id: int, session: DBSession):
     return networks
 
 
-@router.get("/{network_id}")
+@router.get('/{network_id}')
 async def retrieve_restricted_network(network_id: int, session: DBSession):
     statement = select(RestrictedNetwork).where(
         RestrictedNetwork.id == network_id)
@@ -67,17 +67,17 @@ async def retrieve_restricted_network(network_id: int, session: DBSession):
     if not network:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Network with ID {network_id} not found")
+            detail=f'Network with ID {network_id} not found')
 
     return network
 
 
-@router.delete("/{network_id}")
+@router.delete('/{network_id}', status_code=201)
 async def drop_restricted_network(network_id: int, session: DBSession):
     network = await retrieve_restricted_network(network_id, session)
     network.end_time = datetime.now()
 
-    chain = "FORWARD"
+    chain = 'FORWARD'
     iptables.drop_rules(chain, network.iptable_rules())
 
     session.add(network)

@@ -9,7 +9,7 @@ class RestrictedNetwork(SQLModel, table=True):
     destination_virtual_address: str
     start_time: datetime
     end_time: datetime | None = None
-    client_id: int | None = Field(default=None, foreign_key="client.id")
+    client_id: int | None = Field(default=None, foreign_key='client.id')
 
     def iptable_rules(self):
         return [

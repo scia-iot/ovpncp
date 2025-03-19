@@ -16,7 +16,7 @@ DBSession = Annotated[Session, Depends(get_session)]
 router = APIRouter()
 
 
-@router.post("", response_model=ServerWithVirtualAddresses)
+@router.post('', response_model=ServerWithVirtualAddresses)
 async def init_server(session: DBSession):
     server = load_from_config()
 
@@ -27,25 +27,25 @@ async def init_server(session: DBSession):
     return server
 
 
-@router.get("")
+@router.get('')
 async def get_server(session: DBSession):
     server = session.exec(select(Server)).one_or_none()
 
     if not server:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found")
+            detail='Server not found')
 
     return server
 
 
-@router.get("/health")
+@router.get('/health')
 async def get_service_health():
     service_health = openvpn.get_status()
     return service_health
 
 
-@router.get("/assignable-virtual-addresses")
+@router.get('/assignable-virtual-addresses')
 async def get_assignable_virtual_addresses(session: DBSession):
     statement = select(VirtualAddress).where(VirtualAddress.client == None)  # noqa: E711, is doesn't work here...
     addresses = session.exec(statement).all()

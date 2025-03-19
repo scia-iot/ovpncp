@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from sciaiot.ovpncp.dependencies import copy_scripts, create_app_directory, create_tables
 from sciaiot.ovpncp.routes import client, network, server
 
-log_config_path = importlib.resources.files("sciaiot.ovpncp").joinpath("log.yml")
+log_config_path = importlib.resources.files('sciaiot.ovpncp').joinpath('log.yml')
 logger = logging.getLogger(__name__)
 
 
@@ -18,18 +18,18 @@ async def lifespan(app: FastAPI):
     create_app_directory()
     create_tables()
     copy_scripts()
-    logger.info("Startup events finished.")
+    logger.info('Startup events finished.')
 
     yield
 
     # shutdown
-    logger.info("Shutdown events finished.")
+    logger.info('Shutdown events finished.')
 
 app = FastAPI(lifespan=lifespan)
-app.include_router(server.router, prefix="/server", tags=["server"])
-app.include_router(client.router, prefix="/clients", tags=["client"])
-app.include_router(network.router, prefix="/networks", tags=["server"])
+app.include_router(server.router, prefix='/server', tags=['server'])
+app.include_router(client.router, prefix='/clients', tags=['client'])
+app.include_router(network.router, prefix='/networks', tags=['server'])
 
 
 def run():
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_config=str(log_config_path))
+    uvicorn.run(app, host='127.0.0.1', port=8000, log_config=str(log_config_path))
