@@ -72,7 +72,7 @@ async def retrieve_restricted_network(network_id: int, session: DBSession):
     return network
 
 
-@router.delete('/{network_id}', status_code=201)
+@router.delete('/{network_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def drop_restricted_network(network_id: int, session: DBSession):
     network = await retrieve_restricted_network(network_id, session)
     network.end_time = datetime.now()

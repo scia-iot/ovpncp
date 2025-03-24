@@ -1,5 +1,5 @@
-from datetime import datetime
 import os
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,10 +16,13 @@ from sciaiot.ovpncp.data.server import (
     ClientDetails,
     ClientWithVirtualAddress,
     Connection,
+    Route,
+    RouteBase,
     VirtualAddress,
     VirtualAddressBase,
 )
 from sciaiot.ovpncp.dependencies import get_session
+from sciaiot.ovpncp.routes.server import get_server
 from sciaiot.ovpncp.utils import openvpn
 
 DBSession = Annotated[Session, Depends(get_session)]
@@ -65,7 +68,7 @@ async def retrieve_client(client_name: str, session: DBSession):
     return client
 
 
-@router.put('/{client_name}/package-cert', status_code=201)
+@router.put('/{client_name}/package-cert')
 async def package_client_cert(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
     archive = openvpn.package_client_cert(client.name, dependencies.certs_directory)
@@ -122,9 +125,10 @@ async def assign_virtual_address(client_name: str, address: VirtualAddressBase, 
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f'Virtual address with IP "{address.ip}" not found')
 
+    server = await get_server(session)
     client = get_client_by_name(client_name, session)
     client.virtual_address = virtual_address
-    openvpn.assign_client_ip(client.name, virtual_address.ip)
+    openvpn.assign_client_ip(client.name, virtual_address.ip, server.subnet_mask)
 
     session.add(client)
     session.commit()
@@ -133,7 +137,7 @@ async def assign_virtual_address(client_name: str, address: VirtualAddressBase, 
     return client
 
 
-@router.delete('/{client_name}/unassign-ip', response_model=ClientWithVirtualAddress)
+@router.delete('/{client_name}/unassign-ip', status_code=status.HTTP_204_NO_CONTENT)
 async def unassign_virtual_address(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
     
@@ -142,14 +146,43 @@ async def unassign_virtual_address(client_name: str, session: DBSession):
             status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail=f'Client "{client_name}" has no virtual address assigned')
 
-    openvpn.unassign_client_ip(client.name, client.virtual_address.ip)
+    openvpn.unassign_client_ip(client.name)
     client.virtual_address = None
     
     session.add(client)
     session.commit()
     session.refresh(client)
+
+
+@router.post('/{client_name}/routes', response_model=Route)
+async def add_route(client_name: str, route: RouteBase, session: DBSession):
+    client = get_client_by_name(client_name, session)
+    route = Route(client=client, rule=route.rule)
     
-    return client
+    openvpn.add_client_route(client.name, route.rule)
+    
+    session.add(route)
+    session.commit()
+    session.refresh(route)
+    
+    return route
+
+
+@router.delete('/{client_name}/routes/{route_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def remove_route(client_name: str, route_id: int, session: DBSession):
+    client = get_client_by_name(client_name, session)
+    statement = select(Route).where(Route.id == route_id, Route.client_id == client.id)
+    route = session.exec(statement).one_or_none()
+    
+    if not route:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Route with ID {route_id} not found')
+
+    openvpn.remove_client_route(client.name, route.rule)
+    
+    session.delete(route)
+    session.commit()
 
 
 @router.post('/{client_name}/connections')

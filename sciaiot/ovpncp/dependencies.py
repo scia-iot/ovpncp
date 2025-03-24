@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 import shutil
+import stat
 
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -32,6 +33,10 @@ def copy_scripts():
             
         shutil.copytree(source_path, target_folder)
         logger.info('Copied scripts to the app directory.')
+        
+        for path in target_folder.rglob('*.sh'):
+            path.chmod(path.stat().st_mode | stat.S_IEXEC)
+            logger.info(f'Made script {path} executable.')
 
 
 def get_session():

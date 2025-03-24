@@ -65,25 +65,6 @@ def get_status():
     return {'status': default}
 
 
-def list_clients():
-    '''List the clients connected to the OpenVPN server.'''
-
-    logger.info('Retrieving the list of clients from OpenVPN server...')
-    with open(f'{openvpn_log_dir}/ipp.txt', 'r') as file:
-        lines = file.read().splitlines()
-        clients = []
-
-        for line in lines:
-            match = client_pattern.match(line)
-            if match:
-                name = match.group(1)
-                ip = match.group(2)
-                clients.append({'name': name, 'ip': ip})
-
-        logger.info(f'Found {len(clients)} client(s) of OpenVPN server.')
-        return clients
-
-
 def build_client(name: str):
     '''Build a client with the given name.'''
 
@@ -115,8 +96,8 @@ def read_client_cert(name: str) -> dict:
             cert = x509.load_pem_x509_certificate(cert_content, default_backend())
             issued_by = cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
             issued_to = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-            issued_on = cert.not_valid_before
-            expires_on = cert.not_valid_after
+            issued_on = cert.not_valid_before_utc
+            expires_on = cert.not_valid_after_utc
             
             logger.info(f'Successfully read certificate for client {name}.')
             return {
@@ -204,31 +185,54 @@ def generate_crl() -> bool:
         return False
 
 
-def assign_client_ip(name: str, ip: str):
+def assign_client_ip(name: str, ip: str, subnet_mask: str):
     '''Add a client with the given name and IP address to the OpenVPN server.'''
 
     logger.info(
         f'Adding client {name} with IP address {ip} to OpenVPN server...')
-    with open(f'{openvpn_log_dir}/ipp.txt', 'a') as file:
-        file.write(f'{name},{ip}\n')
+    
+    config_path = f'{openvpn_dir}/ccd/{name}' 
+    with open(config_path, 'w') as file:
+        file.write(f'ifconfig-push {ip} {subnet_mask}\n')
+        
     logger.info(
         f'Client {name} with IP address {ip} has been successfully added to OpenVPN server.')
 
 
-def unassign_client_ip(name: str, ip: str):
-    '''Remove a client with the given name and IP address from the OpenVPN server.'''
+def add_client_route(name: str, rule: str):
+    '''Add a route to the OpenVPN server.'''
+    
+    logger.info(f'Adding route to OpenVPN server for client {name}...')
+    with open(f'{openvpn_dir}/ccd/{name}', 'a') as file:
+        file.write(f'iroute {rule}\n')
+    logger.info(f'Route to OpenVPN server for client {name} has been successfully added.')
 
-    logger.info(f'Removing client {name} with IP address {ip} from OpenVPN server...')
 
-    file_path = f'{openvpn_log_dir}/ipp.txt'
+def remove_client_route(name: str, rule: str):
+    '''Remove a specific route from the OpenVPN server for a client.'''
+    
+    logger.info(f'Removing route from OpenVPN server for client {name}...')
+    file_path = f'{openvpn_dir}/ccd/{name}'
+    
     with open(file_path, 'r') as file:
         lines = file.readlines()
+    updated_lines = [line for line in lines if not line.startswith(f'iroute {rule}\n')]
     with open(file_path, 'w') as file:
-        for line in lines:
-            if line.strip() != f'{name},{ip}':
-                file.write(line)
+        file.writelines(updated_lines)
+    
+    logger.info(f'Route from OpenVPN server for client {name} has been successfully removed.')
 
-    logger.info(f'Client {name} with IP address {ip} has been successfully removed from OpenVPN server.')
+
+def unassign_client_ip(name: str):
+    '''Remove a client with the given name and IP address from the OpenVPN server.'''
+
+    logger.info(f'Removing client "{name}" IP from OpenVPN server...')
+
+    config_path = f'{openvpn_dir}/ccd/{name}' 
+    if os.path.exists(config_path):
+        os.remove(config_path)
+
+    logger.info(f'Client "{name}" IP has been successfully removed from OpenVPN server.')
 
 
 def list_connections():
