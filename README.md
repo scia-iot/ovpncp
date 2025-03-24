@@ -16,7 +16,23 @@ For package installation, it's easier to use `pipx` with it.
 sudo pipx install ovpncp-0.1.0-py3-none-any.whl
 ```
 
-## Usage
+## OpenVPN Server Setup
+
+Enable CCD & make it exclusive:
+
+```shell
+client-config-dir /etc/openvpn/ccd
+ccd_exclusive
+```
+
+Enable the scripts of client connection:
+
+```shell
+client-connect /opt/ovpncp/scripts/client-connect.sh
+client-disconnect /opt/ovpncp/scripts/client-disconnect.sh
+```
+
+## Basic Usage
 
 Start the application:
 
@@ -45,10 +61,43 @@ Check the health of OpenVPN server:
 curl -X GET http://127.0.0.1:8000/server/health
 ```
 
-### About Restricted Network
+### Setup Client
 
-IMPORTANT: make sure drop all forwarding by default:
+Create the client:
+
+```shell
+curl -X POST http://127.0.0.1:8000/clients -d '{"name": "client1"}'
+```
+
+Package the client certificate:
+
+```shell
+curl -X PUT http://127.0.0.1:8000/clients/client1/package-cert
+```
+
+Download the archive:
+
+```shell
+curl -X GET http://127.0.0.1:8000/clients/client1/download-cert
+```
+
+Assign IP to the client:
+
+```shell
+curl -X POST http://127.0.0.1:8000/clients/client1/assign-ip -d '{"ip": "10.8.0.2"}'
+```
+
+### Setup Restricted Network
+
+IMPORTANT: make sure drop all forwarding on `tun0` by default:
 
 ```shell
 sudo iptables -A FORWARD -i tun0 -j DROP
+```
+
+Create the network:
+
+```shell
+curl -X POST http://127.0.0.1:8000/networks \ 
+    -d '{"source_client_name": "client_1", "destination_client_name": "edge_device_1"}'
 ```

@@ -19,6 +19,8 @@ class ServerBase(SQLModel):
     subnet_mask: str
     ip: str
     ifconfig_pool_persist: str
+    client_config_dir: str
+    ccd_exclusive: bool = False
     keepalive: str
     persist_key: bool = False
     persist_tun: bool = False
@@ -68,6 +70,8 @@ class Client(ClientBase, table=True):
         back_populates='client')
     cert: Optional['Cert'] = Relationship(
         back_populates='client', cascade_delete=True)
+    routes: list['Route'] = Relationship(
+        back_populates='client', cascade_delete=True)
     connections: list['Connection'] = Relationship(
         back_populates='client', cascade_delete=True)
 
@@ -83,6 +87,16 @@ class Cert(CertBase, table=True):
     id: int = Field(default=None, primary_key=True)
     client_id: int = Field(default=None, foreign_key='client.id')
     client: Client = Relationship(sa_relationship_kwargs={'uselist': False}, back_populates='cert')
+
+
+class RouteBase(SQLModel):
+    rule: str
+
+
+class Route(RouteBase, table=True):
+    id: int = Field(default=None, primary_key=True)
+    client_id: int = Field(default=None, foreign_key='client.id')
+    client: Client = Relationship(back_populates='routes')
 
 
 class ConnectionBase(SQLModel):
@@ -104,4 +118,5 @@ class ClientWithVirtualAddress(ClientBase):
 class ClientDetails(ClientBase):
     virtual_address: VirtualAddressBase | None
     cert: CertBase
+    routes: list[RouteBase] = []
     connections: list[ConnectionBase] = []

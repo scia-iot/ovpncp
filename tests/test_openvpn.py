@@ -1,18 +1,18 @@
-from datetime import datetime, timedelta
-from unittest import mock
-from unittest.mock import MagicMock, mock_open, patch
 import zipfile
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, mock_open, patch
 
 from sciaiot.ovpncp.utils.openvpn import (
+    add_client_route,
     assign_client_ip,
     build_client,
     generate_crl,
     get_server_config,
     get_status,
-    list_clients,
     list_connections,
     package_client_cert,
     read_client_cert,
+    remove_client_route,
     renew_client_cert,
     revoke_client,
     unassign_client_ip,
@@ -178,6 +178,8 @@ ifconfig-pool-persist /var/log/openvpn/ipp.txt
 # subnet behind it that should also have VPN access,
 # use the subdirectory "ccd" for client-specific
 # configuration files (see man page for more info).
+client-config-dir ccd
+ccd-exclusive
 
 # EXAMPLE: Suppose the client
 # having the certificate common name "Thelonious"
@@ -337,7 +339,7 @@ script-security 2
 def test_get_server_config(mock_open):
     configs = get_server_config()
     assert configs is not None
-    assert len(configs) == 21
+    assert len(configs) == 23
 
     mock_open.assert_called_with('/etc/openvpn/server.conf', 'r')
 
@@ -428,8 +430,8 @@ MIIDXTCCAkWgAwIBAgIJALb2Z6Z6Z6Z6MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
 @patch('cryptography.x509.load_pem_x509_certificate')
 def test_read_client_cert_success(mock_load_cert, mock_open):
     mock_cert = MagicMock()
-    mock_cert.not_valid_before = datetime.now()
-    mock_cert.not_valid_after = datetime.now() + timedelta(days=365)
+    mock_cert.not_valid_before_utc = datetime.now()
+    mock_cert.not_valid_after_utc = datetime.now() + timedelta(days=365)
     mock_cert.subject.get_attributes_for_oid.return_value = [MagicMock(value='client_name')]
     mock_cert.issuer.get_attributes_for_oid.return_value = [MagicMock(value='CA_name')]
     mock_load_cert.return_value = mock_cert
@@ -438,8 +440,8 @@ def test_read_client_cert_success(mock_load_cert, mock_open):
     assert result is not None
     assert result['issued_to'] == 'client_name'
     assert result['issued_by'] == 'CA_name'
-    assert result['issued_on'] == mock_cert.not_valid_before
-    assert result['expires_on'] == mock_cert.not_valid_after
+    assert result['issued_on'] == mock_cert.not_valid_before_utc
+    assert result['expires_on'] == mock_cert.not_valid_after_utc
     
     mock_open.assert_called_once_with('/etc/openvpn/easy-rsa/pki/issued/client_name.crt', 'rb')
     mock_load_cert.assert_called_once()
@@ -543,60 +545,40 @@ def test_generate_crl_fail(mock_run):
     )
 
 
-client_lines = """
-client_1,10.8.0.2
-client_2,10.8.0.3
-plc_1,10.8.0.4
-plc_2,10.8.0.5
-"""
-
-
-@patch('builtins.open', new_callable=mock_open, read_data=client_lines)
-def test_list_clients(mock_open):
-    clients = list_clients()
-
-    assert clients is not None
-    assert len(clients) == 4
-    assert clients[0] == {'name': 'client_1', 'ip': '10.8.0.2'}
-    assert clients[1] == {'name': 'client_2', 'ip': '10.8.0.3'}
-    assert clients[2] == {'name': 'plc_1', 'ip': '10.8.0.4'}
-    assert clients[3] == {'name': 'plc_2', 'ip': '10.8.0.5'}
-
-    mock_open.assert_called_with('/var/log/openvpn/ipp.txt', 'r')
-
-
-@patch('builtins.open', new_callable=mock_open, read_data='')
-def test_list_clients_empty(mock_open):
-    clients = list_clients()
-
-    assert clients is not None
-    assert len(clients) == 0
-
-    mock_open.assert_called_with('/var/log/openvpn/ipp.txt', 'r')
-
-
-@patch('builtins.open', new_callable=mock_open, read_data=client_lines)
+@patch('builtins.open', new_callable=mock_open)
 def test_assign_client_ip(mock_open):
-    assign_client_ip('client_3', '10.8.0.6')
-    
-    mock_open.assert_called_with('/var/log/openvpn/ipp.txt', 'a')
-    
+    assign_client_ip('client_1', '10.8.0.2', '255.255.255.0')
+
+    mock_open.assert_called_with('/etc/openvpn/ccd/client_1', 'w')
+
     handle = mock_open()
-    handle.write.assert_called_with('client_3,10.8.0.6\n')
+    handle.write.assert_called_with('ifconfig-push 10.8.0.2 255.255.255.0\n')
 
 
-@patch('builtins.open', new_callable=mock_open, read_data=client_lines)
-def test_unassign_client_ip(mock_open):
-    unassign_client_ip('client_1', '10.8.0.2')
+@patch('builtins.open', new_callable=mock_open)
+def test_add_client_route(mock_open):
+    add_client_route('client_1', '192.168.1.2 255.255.255.0')
     
-    mock_open.assert_called_with('/var/log/openvpn/ipp.txt', 'w')
+    mock_open.assert_called_with('/etc/openvpn/ccd/client_1', 'a')
     
     handle = mock_open()
-    handle.write.assert_has_calls(calls=[
-        mock.call('client_2,10.8.0.3\n'), 
-        mock.call('plc_1,10.8.0.4\n'), 
-        mock.call('plc_2,10.8.0.5\n'),
-    ])
+    handle.write.assert_called_with('iroute 192.168.1.2 255.255.255.0\n')
+
+
+@patch('builtins.open', new_callable=mock_open, read_data='ifconfig-push 10.8.0.2 10.8.0.1\niroute 192.168.1.2 255.255.255.0\n')
+def test_remove_client_route(mock_open):
+    remove_client_route('client_1', '192.168.1.2 255.255.255.0')
+    
+    mock_open.assert_called_with('/etc/openvpn/ccd/client_1', 'w')
+
+
+@patch('os.path.exists', return_value=True)
+@patch('os.remove')
+def test_unassign_client_ip(mock_remove, mock_exists):
+    unassign_client_ip('client_1')
+    
+    mock_exists.assert_called_with('/etc/openvpn/ccd/client_1')
+    mock_remove.assert_called_with('/etc/openvpn/ccd/client_1')
 
 
 connection_lines = """
