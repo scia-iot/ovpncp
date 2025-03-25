@@ -117,6 +117,27 @@ def test_get_clients(client: TestClient):
 
 
 @patch('sciaiot.ovpncp.utils.openvpn.assign_client_ip')
+@patch('sciaiot.ovpncp.utils.openvpn.add_client_route')
+def test_setup_network(mock_add_client_route, mock_assign_client_ip, client: TestClient):
+    response = client.put(
+        '/clients/test_client_1/setup-network', json={'ip': '10.0.0.1', 'route_rules': []})
+    assert response.status_code == 404
+    assert response.json() == {
+        'detail': 'Virtual address with IP "10.0.0.1" not found'}
+    
+    response = client.put(
+        '/clients/test_client_1/setup-network', json={'ip': '10.8.0.2', 'route_rules': ['192.168.10.0 255.255.255.0']})
+    assert response.status_code == 200
+
+    content = response.json()
+    assert content['name'] == 'test_client_1'
+    assert content['virtual_address']['ip'] == '10.8.0.2'
+    
+    mock_assign_client_ip.assert_called_with('test_client_1', '10.8.0.2', '255.255.255.0')
+    mock_add_client_route.assert_called_with('test_client_1', '192.168.10.0 255.255.255.0')
+
+
+@patch('sciaiot.ovpncp.utils.openvpn.assign_client_ip')
 def test_assign_virtual_address(mock_assign_client_ip, client: TestClient):
     response = client.put(
         '/clients/test_client_1/assign-ip', json={'ip': '10.0.0.1'})
@@ -157,15 +178,15 @@ def test_add_and_remove_route(mock_add_client_route, mock_remove_client_route, c
     assert response.status_code == 200
     
     content = response.json()
-    assert content['id'] == 1
+    assert content['id'] == 2
     assert content['rule'] == '10.8.0.1 255.255.255.0'
     
     mock_add_client_route.assert_called_with('test_client_1', '10.8.0.1 255.255.255.0')
     
-    response = client.delete('/clients/test_client_1/routes/1')
+    response = client.delete('/clients/test_client_1/routes/2')
     assert response.status_code == 204
     
-    response = client.delete('/clients/test_client_1/routes/1')
+    response = client.delete('/clients/test_client_1/routes/2')
     assert response.status_code == 404
     
     mock_remove_client_route.assert_called_with('test_client_1', '10.8.0.1 255.255.255.0')

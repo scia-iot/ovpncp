@@ -101,3 +101,9 @@ Create the network:
 curl -X POST http://127.0.0.1:8000/networks \ 
     -d '{"source_client_name": "client_1", "destination_client_name": "edge_device_1"}'
 ```
+
+Drop the network:
+
+```shell
+curl -X DELETE http://127.0.0.1:8000/networks/1
+```
