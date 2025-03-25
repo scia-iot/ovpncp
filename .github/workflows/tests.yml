@@ -28,6 +28,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Install SQLite
+      run: |
+        sudo apt update && sudo apt install sqlite3
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
