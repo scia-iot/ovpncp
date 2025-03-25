@@ -50,7 +50,7 @@ jobs:
     # For more information, see: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment#deployment-protection-rules
     environment:
       name: pypi
-      url: https://pypi.org/p/apache-airflow-providers-tdengine
+      url: https://pypi.org/p/ovpncp
 
     steps:
       - name: Retrieve release distributions
