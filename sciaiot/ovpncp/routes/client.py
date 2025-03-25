@@ -29,6 +29,11 @@ DBSession = Annotated[Session, Depends(get_session)]
 router = APIRouter()
 
 
+class ClientNetworkRequest(BaseModel):
+    ip: str
+    route_rules: list[str]
+
+
 class StartConnectionRequest(BaseModel):
     remote_address: str
     connected_time: datetime
@@ -112,6 +117,34 @@ async def revoke_client(client_name: str, session: DBSession):
     session.commit()
     session.refresh(client)
 
+    return client
+
+
+@router.put('/{client_name}/setup-network', response_model=ClientWithVirtualAddress)
+async def setup_network(client_name: str, request: ClientNetworkRequest, session: DBSession):
+    statement = select(VirtualAddress).where(VirtualAddress.ip == request.ip)
+    virtual_address = session.exec(statement).one_or_none()
+    
+    if not virtual_address:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Virtual address with IP "{request.ip}" not found')
+    
+    server = await get_server(session)
+    client = get_client_by_name(client_name, session)
+    
+    client.virtual_address = virtual_address
+    openvpn.assign_client_ip(client.name, virtual_address.ip, server.subnet_mask)
+    session.add(client)
+    
+    for rule in request.route_rules:
+        route = Route(client=client, rule=rule)
+        openvpn.add_client_route(client.name, route.rule)
+        session.add(route)
+        
+    session.commit()
+    session.refresh(client)
+    
     return client
 
 

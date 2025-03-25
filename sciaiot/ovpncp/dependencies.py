@@ -1,9 +1,9 @@
 import importlib.resources
 import logging
 import os
-from pathlib import Path
 import shutil
 import stat
+from pathlib import Path
 
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -25,12 +25,17 @@ def create_app_directory():
         logger.info('Created the app directory & subdirectories.')
 
 
+def create_tables():
+    SQLModel.metadata.create_all(engine)
+    logger.info('Created all tables, existing ones will be skipped.')
+
+
 def copy_scripts():
     target_folder = Path(scripts_directory)
     with importlib.resources.path('sciaiot.ovpncp', 'scripts') as source_path:
         if target_folder.exists():
-            shutil.rmtree(target_folder)
-            
+            return
+        
         shutil.copytree(source_path, target_folder)
         logger.info('Copied scripts to the app directory.')
         
@@ -42,13 +47,3 @@ def copy_scripts():
 def get_session():
     with Session(engine) as session:
         yield session
-
-
-def create_tables():
-    SQLModel.metadata.create_all(engine)
-    logger.info('Created all tables.')
-
-
-def drop_tables():
-    SQLModel.metadata.drop_all(engine)
-    logger.info('Dropped all tables.')
