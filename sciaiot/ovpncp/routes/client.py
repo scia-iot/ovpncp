@@ -1,3 +1,4 @@
+import ipaddress
 import os
 from datetime import datetime
 from typing import Annotated
@@ -16,8 +17,6 @@ from sciaiot.ovpncp.data.server import (
     ClientDetails,
     ClientWithVirtualAddress,
     Connection,
-    Route,
-    RouteBase,
     VirtualAddress,
     VirtualAddressBase,
 )
@@ -120,34 +119,6 @@ async def revoke_client(client_name: str, session: DBSession):
     return client
 
 
-@router.put('/{client_name}/setup-network', response_model=ClientWithVirtualAddress)
-async def setup_network(client_name: str, request: ClientNetworkRequest, session: DBSession):
-    statement = select(VirtualAddress).where(VirtualAddress.ip == request.ip)
-    virtual_address = session.exec(statement).one_or_none()
-    
-    if not virtual_address:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Virtual address with IP "{request.ip}" not found')
-    
-    server = await get_server(session)
-    client = get_client_by_name(client_name, session)
-    
-    client.virtual_address = virtual_address
-    openvpn.assign_client_ip(client.name, virtual_address.ip, server.subnet_mask)
-    session.add(client)
-    
-    for rule in request.route_rules:
-        route = Route(client=client, rule=rule)
-        openvpn.add_client_route(client.name, route.rule)
-        session.add(route)
-        
-    session.commit()
-    session.refresh(client)
-    
-    return client
-
-
 @router.put('/{client_name}/assign-ip', response_model=ClientWithVirtualAddress)
 async def assign_virtual_address(client_name: str, address: VirtualAddressBase, session: DBSession):
     statement = select(VirtualAddress).where(VirtualAddress.ip == address.ip)
@@ -162,6 +133,10 @@ async def assign_virtual_address(client_name: str, address: VirtualAddressBase, 
     client = get_client_by_name(client_name, session)
     client.virtual_address = virtual_address
     openvpn.assign_client_ip(client.name, virtual_address.ip, server.subnet_mask)
+    
+    if client.cidr:
+        network = ipaddress.ip_network(client.cidr, strict=False)
+        openvpn.add_iroute(client.name, f'{network.network_address} {network.netmask}')
 
     session.add(client)
     session.commit()
@@ -185,37 +160,6 @@ async def unassign_virtual_address(client_name: str, session: DBSession):
     session.add(client)
     session.commit()
     session.refresh(client)
-
-
-@router.post('/{client_name}/routes', response_model=Route)
-async def add_route(client_name: str, route: RouteBase, session: DBSession):
-    client = get_client_by_name(client_name, session)
-    route = Route(client=client, rule=route.rule)
-    
-    openvpn.add_client_route(client.name, route.rule)
-    
-    session.add(route)
-    session.commit()
-    session.refresh(route)
-    
-    return route
-
-
-@router.delete('/{client_name}/routes/{route_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def remove_route(client_name: str, route_id: int, session: DBSession):
-    client = get_client_by_name(client_name, session)
-    statement = select(Route).where(Route.id == route_id, Route.client_id == client.id)
-    route = session.exec(statement).one_or_none()
-    
-    if not route:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Route with ID {route_id} not found')
-
-    openvpn.remove_client_route(client.name, route.rule)
-    
-    session.delete(route)
-    session.commit()
 
 
 @router.post('/{client_name}/connections')

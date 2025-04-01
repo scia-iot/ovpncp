@@ -2,6 +2,7 @@ import ipaddress
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from sciaiot.ovpncp.data.server import (
@@ -10,10 +11,14 @@ from sciaiot.ovpncp.data.server import (
     VirtualAddress,
 )
 from sciaiot.ovpncp.dependencies import get_session
-from sciaiot.ovpncp.utils import openvpn
+from sciaiot.ovpncp.utils import iproute, openvpn
 
 DBSession = Annotated[Session, Depends(get_session)]
 router = APIRouter()
+
+
+class RouteRequest(BaseModel):
+    network: str
 
 
 @router.post('', response_model=ServerWithVirtualAddresses)
@@ -52,6 +57,25 @@ async def get_assignable_virtual_addresses(session: DBSession):
     return addresses
 
 
+@router.get('/routes')
+async def get_routes(session: DBSession):
+    server = await get_server(session)
+    routes = iproute.list(server.dev)
+    return routes
+
+
+@router.post('/routes', status_code=status.HTTP_204_NO_CONTENT)
+async def add_route(request: RouteRequest, session: DBSession):
+    server = await get_server(session)
+    iproute.add(request.network, server.ip, server.dev)
+
+
+@router.delete('/routes', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_route(network:str, session: DBSession):
+    server = await get_server(session)
+    iproute.delete(network, server.ip, server.dev)
+
+
 def load_from_config():
     config = openvpn.get_server_config()
 
@@ -63,6 +87,7 @@ def load_from_config():
     config['network_address'] = network_address
     config['subnet_mask'] = subnet_mask
     config['ip'] = hosts.pop(0).compressed
+    config['dev'] = f'{config["dev"]}0'
 
     server = Server(**config)
     server.virtual_addresses = [VirtualAddress(

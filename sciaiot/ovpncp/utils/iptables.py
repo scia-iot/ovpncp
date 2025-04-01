@@ -17,7 +17,6 @@ def list_rules(chain):
     result = subprocess.run(
         ['iptables', '-L', chain, '--line-numbers'],
         capture_output=True,
-        text=True,
         check=True
     )
 
@@ -48,7 +47,7 @@ def apply_rules(chain, line_number, rules):
 
     logging.info(
         f'Inserting iptables rules before line {line_number} in chain {chain}: {shell_command}')
-    subprocess.run(shell_command, shell=True, check=True)
+    subprocess.run(shell_command, check=True)
     logging.info(
         f'Successfully inserted all iptables rules before line {line_number}.')
 
@@ -67,5 +66,5 @@ def drop_rules(chain, rules):
     shell_command = ' && '.join(commands)
 
     logging.info(f'Dropping iptables rules in chain {chain}: {shell_command}')
-    subprocess.run(shell_command, shell=True, check=True)
+    subprocess.run(shell_command, check=True)
     logging.info(f'Successfully dropped all iptables rules in chain {chain}.')

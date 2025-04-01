@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, mock_open, patch
 
 from sciaiot.ovpncp.utils.openvpn import (
-    add_client_route,
+    add_iroute,
     assign_client_ip,
     build_client,
     generate_crl,
@@ -11,8 +11,10 @@ from sciaiot.ovpncp.utils.openvpn import (
     get_status,
     list_connections,
     package_client_cert,
+    pull_client_routes,
+    push_client_routes,
     read_client_cert,
-    remove_client_route,
+    remove_iroute,
     renew_client_cert,
     revoke_client,
     unassign_client_ip,
@@ -402,7 +404,7 @@ def test_build_client(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch build-client-full client nopass', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -414,7 +416,7 @@ def test_build_client_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch build-client-full client nopass', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -480,7 +482,7 @@ def test_renew_client_cert(mock_run, mock_read_client_cert):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke-renewed client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
     mock_read_client_cert.assert_called_once_with('client')
 
@@ -493,7 +495,7 @@ def test_renew_client_cert_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke-renewed client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -505,7 +507,7 @@ def test_revoke_client_cert(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke test_client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -517,7 +519,7 @@ def test_revoke_client_cert_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke test_client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -529,7 +531,7 @@ def test_generate_crl(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch gen-crl', 
         cwd='/etc/openvpn/easy-rsa',   
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -541,7 +543,7 @@ def test_generate_crl_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch gen-crl', 
         cwd='/etc/openvpn/easy-rsa',   
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -555,23 +557,6 @@ def test_assign_client_ip(mock_open):
     handle.write.assert_called_with('ifconfig-push 10.8.0.2 255.255.255.0\n')
 
 
-@patch('builtins.open', new_callable=mock_open)
-def test_add_client_route(mock_open):
-    add_client_route('client_1', '192.168.1.2 255.255.255.0')
-    
-    mock_open.assert_called_with('/etc/openvpn/ccd/client_1', 'a')
-    
-    handle = mock_open()
-    handle.write.assert_called_with('iroute 192.168.1.2 255.255.255.0\n')
-
-
-@patch('builtins.open', new_callable=mock_open, read_data='ifconfig-push 10.8.0.2 10.8.0.1\niroute 192.168.1.2 255.255.255.0\n')
-def test_remove_client_route(mock_open):
-    remove_client_route('client_1', '192.168.1.2 255.255.255.0')
-    
-    mock_open.assert_called_with('/etc/openvpn/ccd/client_1', 'w')
-
-
 @patch('os.path.exists', return_value=True)
 @patch('os.remove')
 def test_unassign_client_ip(mock_remove, mock_exists):
@@ -579,6 +564,38 @@ def test_unassign_client_ip(mock_remove, mock_exists):
     
     mock_exists.assert_called_with('/etc/openvpn/ccd/client_1')
     mock_remove.assert_called_with('/etc/openvpn/ccd/client_1')
+
+
+@patch('builtins.open', new_callable=mock_open)
+def test_add_iroute(mock_open):
+    add_iroute('gateway_1', '192.168.1.0 255.255.255.0')
+    
+    mock_open.assert_called_with('/etc/openvpn/ccd/gateway_1', 'a')
+    
+    handle = mock_open()
+    handle.write.assert_called_with('iroute 192.168.1.0 255.255.255.0\n')
+
+
+@patch('builtins.open', new_callable=mock_open, read_data='ifconfig-push 10.8.0.2 255.255.255.0\niroute 192.168.1.0 255.255.255.0\n')
+def test_remove_iroute(mock_open):
+    remove_iroute('gateway_1', '192.168.1.0 255.255.255.0')
+    
+    mock_open.assert_called_with('/etc/openvpn/ccd/gateway_1', 'w')
+
+
+@patch('builtins.open', new_callable=mock_open)
+def test_push_client_routes(mock_open):
+    push_client_routes('client_1', ['192.168.1.5 255.255.255.255 10.8.0.11'])
+    
+    mock_open.assert_called_with('/etc/openvpn/ccd/client_1', 'a')
+    mock_open().write.assert_called_with('push "route 192.168.1.5 255.255.255.255 10.8.0.11"\n')
+
+
+@patch('builtins.open', new_callable=mock_open, read_data='ifconfig-push 10.8.0.2 255.255.255.0\npush "route 192.168.1.5 255.255.255.255 10.8.0.11"\n')
+def test_pull_client_routes(mock_open):
+    pull_client_routes('client_1')
+    
+    mock_open.assert_called_with('/etc/openvpn/ccd/client_1', 'w')
 
 
 connection_lines = """
