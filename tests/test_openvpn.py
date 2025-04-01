@@ -404,7 +404,7 @@ def test_build_client(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch build-client-full client nopass', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -416,7 +416,7 @@ def test_build_client_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch build-client-full client nopass', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -482,7 +482,7 @@ def test_renew_client_cert(mock_run, mock_read_client_cert):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke-renewed client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
     mock_read_client_cert.assert_called_once_with('client')
 
@@ -495,7 +495,7 @@ def test_renew_client_cert_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke-renewed client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -507,7 +507,7 @@ def test_revoke_client_cert(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke test_client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -519,7 +519,7 @@ def test_revoke_client_cert_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch revoke test_client', 
         cwd='/etc/openvpn/easy-rsa', 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -531,7 +531,7 @@ def test_generate_crl(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch gen-crl', 
         cwd='/etc/openvpn/easy-rsa',   
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 
@@ -543,7 +543,7 @@ def test_generate_crl_fail(mock_run):
     mock_run.assert_called_once_with(
         './easyrsa --batch gen-crl', 
         cwd='/etc/openvpn/easy-rsa',   
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
 

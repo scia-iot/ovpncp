@@ -72,7 +72,7 @@ def build_client(name: str):
     result = subprocess.run(
         f'./easyrsa --batch build-client-full {name} nopass',
         cwd=easyrsa_dir,
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
     if result.returncode == 0:
@@ -138,7 +138,7 @@ def renew_client_cert(name: str) -> dict:
     result = subprocess.run(
         f'./easyrsa --batch revoke-renewed {name}', 
         cwd=easyrsa_dir,
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
     if result.returncode == 0:
@@ -157,7 +157,7 @@ def revoke_client(name: str):
     result = subprocess.run(
         f'./easyrsa --batch revoke {name}', 
         cwd=easyrsa_dir, 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
     if result.returncode == 0:
@@ -174,7 +174,7 @@ def generate_crl() -> bool:
     result = subprocess.run(
         './easyrsa --batch gen-crl', 
         cwd=easyrsa_dir, 
-        shell=True, capture_output=True, text=True, check=True
+        capture_output=True, text=True, check=True
     )
 
     if result.returncode == 0:
