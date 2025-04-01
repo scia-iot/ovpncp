@@ -17,7 +17,7 @@ def list_rules(chain):
     result = subprocess.run(
         ['iptables', '-L', chain, '--line-numbers'],
         capture_output=True,
-        text=True,
+        shell=True,
         check=True
     )
 

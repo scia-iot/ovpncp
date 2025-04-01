@@ -1,22 +1,24 @@
 # OpenVPN Control Panel for Restricted Network
 
-## Build
+[![Tests](https://github.com/scia-iot/ovpncp/actions/workflows/tests.yml/badge.svg)](https://github.com/scia-iot/ovpncp/actions/workflows/tests.yml)
+[![CodeQL Advanced](https://github.com/scia-iot/ovpncp/actions/workflows/codeql.yml/badge.svg)](https://github.com/scia-iot/ovpncp/actions/workflows/codeql.yml)
+[![Package](https://github.com/scia-iot/ovpncp/actions/workflows/package.yml/badge.svg)](https://github.com/scia-iot/ovpncp/actions/workflows/package.yml)
 
-```shell
-python -m build
-```
-
-## Install
+## Installation
 
 In order to run along with OpenVPN server, the ROOT privilege is required.
 
-For package installation, it's easier to use `pipx` with it.
-
 ```shell
-sudo pipx install ovpncp-0.1.0-py3-none-any.whl
+sudo pipx install ovpncp
 ```
 
 ## OpenVPN Server Setup
+
+Make sure the `client-to-client` directive is disabled:
+
+```shell
+;client-to-client
+```
 
 Enable CCD & make it exclusive:
 
@@ -32,22 +34,19 @@ client-connect /opt/ovpncp/scripts/client-connect.sh
 client-disconnect /opt/ovpncp/scripts/client-disconnect.sh
 ```
 
-## Basic Usage
+Restart the server:
+
+```shell
+sudo systemctl restart openvpn
+```
 
 Start the application:
 
 ```shell
-sudo /root/.local/bin/ovpncp
+sudo -i ovpncp
 ```
 
-**Note:** `pipx ensurepath` doesn't work here, must to run it with full path.
-
-Or switch to ROOT user:
-
-```shell
-sudo su
-ovpncp
-```
+## Basic Usage
 
 Init server by calling API with cURL:
 
@@ -66,7 +65,20 @@ curl -X GET http://127.0.0.1:8000/server/health
 Create the client:
 
 ```shell
-curl -X POST http://127.0.0.1:8000/clients -d '{"name": "client1"}'
+curl -X POST http://127.0.0.1:8000/clients \ 
+    -d '{"name": "client1"}'
+```
+
+Create the gateway client for private network:
+
+```shell
+curl -X POST http://127.0.0.1:8000/clients \ 
+--data-binary @- << EOF 
+{
+    "name": "gateway1", 
+    "cidr": "192.168.1.0/24"
+}
+EOF
 ```
 
 Package the client certificate:
@@ -84,12 +96,14 @@ curl -X GET http://127.0.0.1:8000/clients/client1/download-cert
 Assign IP to the client:
 
 ```shell
-curl -X POST http://127.0.0.1:8000/clients/client1/assign-ip -d '{"ip": "10.8.0.2"}'
+curl -X POST http://127.0.0.1:8000/clients/client1/assign-ip \ 
+    -d '{"ip": "10.8.0.2"}'
 ```
 
 ### Setup Restricted Network
 
-IMPORTANT: make sure drop all forwarding on `tun0` by default:
+IMPORTANT: 
+make sure drop all forwarding on `tun0` by default:
 
 ```shell
 sudo iptables -A FORWARD -i tun0 -j DROP
@@ -99,7 +113,25 @@ Create the network:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/networks \ 
-    -d '{"source_client_name": "client_1", "destination_client_name": "edge_device_1"}'
+--data-binary @- << EOF 
+{
+    "source_client_name": "client_1", 
+    "destination_client_name": "edge_device_1",
+}
+EOF
+```
+
+Create the network with a gateway with private network behind it:
+
+```shell
+curl -X POST http://127.0.0.1:8000/networks \ 
+--data-binary @- << EOF 
+{
+    "source_client_name": "client_1", 
+    "destination_client_name": "edge_device_1", 
+    "private_network_addresses": "192.168.1.1,192.168.1.2,192.168.1.3"
+}
+EOF
 ```
 
 Drop the network:

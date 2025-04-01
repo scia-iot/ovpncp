@@ -199,30 +199,6 @@ def assign_client_ip(name: str, ip: str, subnet_mask: str):
         f'Client {name} with IP address {ip} has been successfully added to OpenVPN server.')
 
 
-def add_client_route(name: str, rule: str):
-    '''Add a route to the OpenVPN server.'''
-    
-    logger.info(f'Adding route to OpenVPN server for client {name}...')
-    with open(f'{openvpn_dir}/ccd/{name}', 'a') as file:
-        file.write(f'iroute {rule}\n')
-    logger.info(f'Route to OpenVPN server for client {name} has been successfully added.')
-
-
-def remove_client_route(name: str, rule: str):
-    '''Remove a specific route from the OpenVPN server for a client.'''
-    
-    logger.info(f'Removing route from OpenVPN server for client {name}...')
-    file_path = f'{openvpn_dir}/ccd/{name}'
-    
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-    updated_lines = [line for line in lines if not line.startswith(f'iroute {rule}\n')]
-    with open(file_path, 'w') as file:
-        file.writelines(updated_lines)
-    
-    logger.info(f'Route from OpenVPN server for client {name} has been successfully removed.')
-
-
 def unassign_client_ip(name: str):
     '''Remove a client with the given name and IP address from the OpenVPN server.'''
 
@@ -233,6 +209,57 @@ def unassign_client_ip(name: str):
         os.remove(config_path)
 
     logger.info(f'Client "{name}" IP has been successfully removed from OpenVPN server.')
+
+
+def add_iroute(name: str, rule: str):
+    '''Add a route to the OpenVPN server.'''
+    
+    logger.info(f'Adding route to OpenVPN server for client {name}...')
+    with open(f'{openvpn_dir}/ccd/{name}', 'a') as file:
+        file.write(f'iroute {rule}\n')
+    logger.info(f'Route to OpenVPN server for client {name} has been successfully added.')
+
+
+def remove_iroute(name: str, rule: str):
+    '''Remove a specific route from the OpenVPN server for a client.'''
+    
+    logger.info(f'Removing route from OpenVPN server for client {name}...')
+    
+    file_path = f'{openvpn_dir}/ccd/{name}'
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        
+    updated_lines = [line for line in lines if not line.startswith(f'iroute {rule}\n')]
+    with open(file_path, 'w') as file:
+        file.writelines(updated_lines)
+    
+    logger.info(f'Route from OpenVPN server for client {name} has been successfully removed.')
+
+
+def push_client_routes(name: str, rules: list[str]):
+    '''Push a list of routes to the OpenVPN client.'''
+    
+    logger.info(f'Pushing route to OpenVPN client {name}...')
+    with open(f'{openvpn_dir}/ccd/{name}', 'a') as file:
+        for rule in rules:
+            file.write(f'push "route {rule}"\n')
+    logger.info(f'Pushed {len(rules)} routes to OpenVPN client {name}.')
+
+
+def pull_client_routes(name: str):
+    '''Pull all routes from the OpenVPN client.'''
+    
+    logger.info(f'Pulling routes from OpenVPN client {name}...')
+    
+    file_path = f'{openvpn_dir}/ccd/{name}'
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        
+    updated_lines = [line for line in lines if not line.startswith('push "route')]
+    with open(file_path, 'w') as file:
+        file.writelines(updated_lines) 
+    
+    logger.info(f'Pulled all routes from OpenVPN client {name}.')
 
 
 def list_connections():

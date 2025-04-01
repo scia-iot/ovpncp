@@ -1,6 +1,6 @@
-from datetime import datetime
 import os
 import stat
+from datetime import datetime
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sciaiot.ovpncp.data.server import Client
 from sciaiot.ovpncp.dependencies import get_session
 from sciaiot.ovpncp.main import app
-from tests import test_openvpn
+from tests import test_iproute, test_openvpn
 
 
 @pytest.fixture(name='client')
@@ -35,6 +35,7 @@ def test_init_server(mock_open, client: TestClient):
     server = response.json()
     assert server is not None
     assert server['ip'] == '10.8.0.1'
+    assert server['dev'] == 'tun0'
     assert server['script_security'] == '2'
     assert server['virtual_addresses'] is not None
     assert len(server['virtual_addresses']) == 253
@@ -60,7 +61,9 @@ def test_get_service_health(mock_run, client: TestClient):
     assert health['period'] == '15s'
 
     mock_run.assert_called_once_with(
-        ['systemctl', 'status', 'openvpn@server'], capture_output=True, text=True, check=False)
+        ['systemctl', 'status', 'openvpn@server'], 
+        capture_output=True, text=True, check=False
+    )
 
 
 def test_get_assignable_virtual_addresses(client: TestClient):
@@ -69,6 +72,31 @@ def test_get_assignable_virtual_addresses(client: TestClient):
 
     addresses = response.json()
     assert len(addresses) == 253
+
+
+@patch('subprocess.run', return_value=MagicMock(stdout=test_iproute.mocked_routes))
+def test_get_routes(mock_run, client: TestClient):
+    response = client.get('/server/routes')
+    assert response.status_code == 200
+
+    routes = response.json()
+    assert len(routes) == 2
+
+
+@patch('sciaiot.ovpncp.utils.iproute.add')
+def test_add_route(mock_add, client: TestClient):
+    response = client.post('/server/routes', json={'network': '192.168.1.0/24'})
+    assert response.status_code == 204
+
+    mock_add.assert_called_once_with('192.168.1.0/24', '10.8.0.1', 'tun0')
+
+
+@patch('sciaiot.ovpncp.utils.iproute.delete')
+def test_delete_route(mock_delete, client: TestClient):
+    response = client.delete('/server/routes', params={'network': '192.168.1.0/24'})
+    assert response.status_code == 204
+    
+    mock_delete.assert_called_once_with('192.168.1.0/24', '10.8.0.1', 'tun0')
 
 
 cert_details = {
@@ -105,6 +133,19 @@ def test_create_client(mock_build_client, mock_read_client_cert, client: TestCli
 
     mock_build_client.assert_called_with('test_client_2')
     mock_read_client_cert.assert_called_with('test_client_2')
+    
+    
+    response = client.post('/clients', json={
+        'name': 'test_gateway_1',
+        'cidr': '192.168.1.0/24'
+    })
+    
+    content = response.json()
+    assert content['name'] == 'test_gateway_1'
+    assert content['cidr'] == '192.168.1.0/24'
+    
+    mock_build_client.assert_called_with('test_gateway_1')
+    mock_read_client_cert.assert_called_with('test_gateway_1')
 
 
 def test_get_clients(client: TestClient):
@@ -113,32 +154,12 @@ def test_get_clients(client: TestClient):
 
     content = response.json()
     assert content is not None
-    assert len(content) == 2
+    assert len(content) == 3
 
 
+@patch('sciaiot.ovpncp.utils.openvpn.add_iroute')
 @patch('sciaiot.ovpncp.utils.openvpn.assign_client_ip')
-@patch('sciaiot.ovpncp.utils.openvpn.add_client_route')
-def test_setup_network(mock_add_client_route, mock_assign_client_ip, client: TestClient):
-    response = client.put(
-        '/clients/test_client_1/setup-network', json={'ip': '10.0.0.1', 'route_rules': []})
-    assert response.status_code == 404
-    assert response.json() == {
-        'detail': 'Virtual address with IP "10.0.0.1" not found'}
-    
-    response = client.put(
-        '/clients/test_client_1/setup-network', json={'ip': '10.8.0.2', 'route_rules': ['192.168.10.0 255.255.255.0']})
-    assert response.status_code == 200
-
-    content = response.json()
-    assert content['name'] == 'test_client_1'
-    assert content['virtual_address']['ip'] == '10.8.0.2'
-    
-    mock_assign_client_ip.assert_called_with('test_client_1', '10.8.0.2', '255.255.255.0')
-    mock_add_client_route.assert_called_with('test_client_1', '192.168.10.0 255.255.255.0')
-
-
-@patch('sciaiot.ovpncp.utils.openvpn.assign_client_ip')
-def test_assign_virtual_address(mock_assign_client_ip, client: TestClient):
+def test_assign_virtual_address(mock_assign_client_ip, mock_add_iroute, client: TestClient):
     response = client.put(
         '/clients/test_client_1/assign-ip', json={'ip': '10.0.0.1'})
     assert response.status_code == 404
@@ -166,30 +187,17 @@ def test_assign_virtual_address(mock_assign_client_ip, client: TestClient):
     assert len(addresses) == 251
 
     mock_assign_client_ip.assert_called_with('test_client_2', '10.8.0.3', '255.255.255.0')
-
-
-@patch('sciaiot.ovpncp.utils.openvpn.remove_client_route')
-@patch('sciaiot.ovpncp.utils.openvpn.add_client_route')
-def test_add_and_remove_route(mock_add_client_route, mock_remove_client_route, client: TestClient):
-    response = client.post(
-        '/clients/test_client_1/routes',
-        json={'rule': '10.8.0.1 255.255.255.0'}
-    )
+    
+    response = client.put(
+        '/clients/test_gateway_1/assign-ip', json={'ip': '10.8.0.11'})
     assert response.status_code == 200
     
     content = response.json()
-    assert content['id'] == 2
-    assert content['rule'] == '10.8.0.1 255.255.255.0'
+    assert content['name'] == 'test_gateway_1'  
+    assert content['virtual_address']['ip'] == '10.8.0.11'
     
-    mock_add_client_route.assert_called_with('test_client_1', '10.8.0.1 255.255.255.0')
-    
-    response = client.delete('/clients/test_client_1/routes/2')
-    assert response.status_code == 204
-    
-    response = client.delete('/clients/test_client_1/routes/2')
-    assert response.status_code == 404
-    
-    mock_remove_client_route.assert_called_with('test_client_1', '10.8.0.1 255.255.255.0')
+    mock_assign_client_ip.assert_called_with('test_gateway_1', '10.8.0.11', '255.255.255.0')
+    mock_add_iroute.assert_called_with('test_gateway_1', '192.168.1.0 255.255.255.0')
 
 
 def test_start_connection(client: TestClient):
@@ -212,8 +220,9 @@ def test_start_connection(client: TestClient):
     assert response.status_code == 200
 
 
-@patch('subprocess.run')
-def test_create_restricted_network(mock_run, client: TestClient):
+@patch('sciaiot.ovpncp.utils.iptables.apply_rules')
+@patch('sciaiot.ovpncp.utils.iptables.list_rules', return_value=["DROP all -- anywhere anywhere"])
+def test_create_restricted_network(mock_list_rules, mock_apply_rules, client: TestClient):
     response = client.get('/networks/1')
     assert response.status_code == 404
     assert response.json() == {'detail': 'Network with ID 1 not found'}
@@ -221,7 +230,8 @@ def test_create_restricted_network(mock_run, client: TestClient):
     response = client.post(
         '/networks',
         json={'source_client_name': 'test_client_1',
-              'destination_client_name': 'test_client_2'}
+              'destination_client_name': 'test_client_2',
+              'private_network_addresses': ''}
     )
     assert response.status_code == 200
 
@@ -229,21 +239,60 @@ def test_create_restricted_network(mock_run, client: TestClient):
     assert content['id'] == 1
     assert content['source_virtual_address'] == '10.8.0.2'
     assert content['destination_virtual_address'] == '10.8.0.3'
+    assert content['private_network_addresses'] == ''
     assert content['start_time'] is not None
 
-    assert mock_run.call_count == 2
+    rules = ['-i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT', '-i tun0 -s 10.8.0.3 -d 10.8.0.2 -j ACCEPT']
+    mock_list_rules.assert_called_with('FORWARD')
+    mock_apply_rules.assert_called_with('FORWARD', 1, rules)
 
 
 @patch('sciaiot.ovpncp.routes.network.get_client_by_name', return_value=Client(name='N/A'))
 def test_create_restricted_network_fail(mock_get_client_by_name, client: TestClient):
     response = client.post(
         '/networks',
-        json={'source_client_name': 'N/A',
-              'destination_client_name': 'N/A'}
+        json={'source_client_name': 'N/A', 'destination_client_name': 'N/A'}
     )
     assert response.status_code == 412
 
     assert mock_get_client_by_name.call_count == 2
+
+
+@patch('sciaiot.ovpncp.utils.openvpn.push_client_routes')
+@patch('sciaiot.ovpncp.utils.iptables.apply_rules')
+@patch('sciaiot.ovpncp.utils.iptables.list_rules', return_value=["DROP all -- anywhere anywhere"])
+def test_create_restricted_network_with_private_network_addresses(mock_list_rules, mock_apply_rules, mock_push_client_routes, client: TestClient):
+    response = client.post(
+        '/networks',
+        json={'source_client_name': 'test_client_1',
+              'destination_client_name': 'test_gateway_1',
+              'private_network_addresses': '192.168.1.1,192.168.1.2,192.168.1.3'}
+    )
+    assert response.status_code == 200
+    
+    content = response.json()
+    assert content['source_virtual_address'] == '10.8.0.2'
+    assert content['destination_virtual_address'] == '10.8.0.11'
+    assert content['private_network_addresses'] == '192.168.1.1,192.168.1.2,192.168.1.3'
+    
+    rules = [
+        '-i tun0 -s 10.8.0.2 -d 10.8.0.11 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.11 -d 10.8.0.2 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.2 -d 192.168.1.1 -j ACCEPT', 
+        '-i tun0 -s 192.168.1.1 -d 10.8.0.2 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.2 -d 192.168.1.2 -j ACCEPT', 
+        '-i tun0 -s 192.168.1.2 -d 10.8.0.2 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.2 -d 192.168.1.3 -j ACCEPT', 
+        '-i tun0 -s 192.168.1.3 -d 10.8.0.2 -j ACCEPT'
+    ]
+    routes = [
+        '192.168.1.1 255.255.255.255 10.8.0.11',
+        '192.168.1.2 255.255.255.255 10.8.0.11',
+        '192.168.1.3 255.255.255.255 10.8.0.11'
+    ]
+    mock_list_rules.assert_called_with('FORWARD')
+    mock_apply_rules.assert_called_with('FORWARD', 1, rules)
+    mock_push_client_routes.assert_called_with('test_client_1', routes)
 
 
 def test_close_connection(client: TestClient):
@@ -273,13 +322,13 @@ def test_close_connection(client: TestClient):
     )
     assert response.status_code == 200
 
-
-@patch('subprocess.run')
-def test_drop_restricted_network(mock_run, client: TestClient):
-    response = client.get('/networks?client_id=1')
+@patch('sciaiot.ovpncp.utils.openvpn.pull_client_routes')
+@patch('sciaiot.ovpncp.utils.iptables.drop_rules')
+def test_drop_restricted_network(mock_drop_rules, mock_pull_client_routes, client: TestClient):
+    response = client.get('/networks?source_name=test_client_1')
     assert response.status_code == 200
     content = response.json()
-    assert len(content) == 1
+    assert len(content) > 0
     assert content[0]['end_time'] is None
 
     response = client.delete('/networks/1')
@@ -291,8 +340,24 @@ def test_drop_restricted_network(mock_run, client: TestClient):
     content = response.json()
     assert content['end_time'] is not None
 
-    mock_run.assert_called_once()
+    rules = ['-i tun0 -s 10.8.0.2 -d 10.8.0.3 -j ACCEPT', '-i tun0 -s 10.8.0.3 -d 10.8.0.2 -j ACCEPT']
+    mock_drop_rules.assert_called_with('FORWARD', rules)
+    
+    response = client.delete('/networks/2')
+    assert response.status_code == 204
 
+    rules = [
+        '-i tun0 -s 10.8.0.2 -d 10.8.0.11 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.11 -d 10.8.0.2 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.2 -d 192.168.1.1 -j ACCEPT', 
+        '-i tun0 -s 192.168.1.1 -d 10.8.0.2 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.2 -d 192.168.1.2 -j ACCEPT', 
+        '-i tun0 -s 192.168.1.2 -d 10.8.0.2 -j ACCEPT', 
+        '-i tun0 -s 10.8.0.2 -d 192.168.1.3 -j ACCEPT', 
+        '-i tun0 -s 192.168.1.3 -d 10.8.0.2 -j ACCEPT'
+    ]    
+    mock_pull_client_routes.assert_called_with('test_client_1')
+    mock_drop_rules.assert_called_with('FORWARD', rules)
 
 @patch('sciaiot.ovpncp.utils.openvpn.unassign_client_ip')
 def test_unassign_virtual_address(mock_unassign_client_ip, client: TestClient):

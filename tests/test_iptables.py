@@ -18,7 +18,7 @@ def test_list_rules(mock_run):
     assert result == expected_output
 
     mock_run.assert_called_once_with(
-        ['iptables', '-L', 'FORWARD', '--line-numbers'], capture_output=True, text=True, check=True)
+        ['iptables', '-L', 'FORWARD', '--line-numbers'], capture_output=True, shell=True, check=True)
 
 
 @patch('subprocess.run')
