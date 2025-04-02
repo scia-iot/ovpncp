@@ -127,7 +127,7 @@ async def assign_virtual_address(client_name: str, address: VirtualAddressBase, 
     if not virtual_address:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Virtual address with IP "{address.ip}" not found')
+            detail=f'Virtual address with IP "{address.ip}" not found!')
 
     server = await get_server(session)
     client = get_client_by_name(client_name, session)
@@ -152,7 +152,7 @@ async def unassign_virtual_address(client_name: str, session: DBSession):
     if not client.virtual_address:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
-            detail=f'Client "{client_name}" has no virtual address assigned')
+            detail=f'Client "{client_name}" has no virtual address assigned!')
 
     openvpn.unassign_client_ip(client.name)
     client.virtual_address = None
@@ -189,7 +189,7 @@ async def close_connection(client_name: str, request: CloseConnectionRequest, se
     if not connection:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Connection with client "{client_name}" from "{request.remote_address}" not found')
+            detail=f'Connection with client "{client_name}" from "{request.remote_address}" not found!')
 
     connection.disconnected_time = request.disconnected_time
 
@@ -207,6 +207,6 @@ def get_client_by_name(client_name: str, session: Session) -> Client:
     if not client:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Client "{client_name}" not found')
+            detail=f'Client "{client_name}" not found!')
 
     return client

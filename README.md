@@ -66,7 +66,7 @@ Create the client:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/clients \ 
-    -d '{"name": "client1"}'
+    -d '{"name": "client_1"}'
 ```
 
 Create the gateway client for private network:
@@ -75,7 +75,7 @@ Create the gateway client for private network:
 curl -X POST http://127.0.0.1:8000/clients \ 
 --data-binary @- << EOF 
 {
-    "name": "gateway1", 
+    "name": "gateway_1", 
     "cidr": "192.168.1.0/24"
 }
 EOF
@@ -84,20 +84,26 @@ EOF
 Package the client certificate:
 
 ```shell
-curl -X PUT http://127.0.0.1:8000/clients/client1/package-cert
+curl -X PUT http://127.0.0.1:8000/clients/client_1/package-cert
 ```
 
 Download the archive:
 
 ```shell
-curl -X GET http://127.0.0.1:8000/clients/client1/download-cert
+curl -X GET http://127.0.0.1:8000/clients/client_1/download-cert
 ```
 
 Assign IP to the client:
 
 ```shell
-curl -X POST http://127.0.0.1:8000/clients/client1/assign-ip \ 
+curl -X PUT http://127.0.0.1:8000/clients/client_1/assign-ip \ 
     -d '{"ip": "10.8.0.2"}'
+```
+
+Unassign IP from the client:
+
+```shell
+curl -X DELETE http://127.0.0.1:8000/clients/client_1/unassign-ip
 ```
 
 ### Setup Restricted Network
@@ -127,8 +133,8 @@ Create the network with a gateway with private network behind it:
 curl -X POST http://127.0.0.1:8000/networks \ 
 --data-binary @- << EOF 
 {
-    "source_client_name": "client_1", 
-    "destination_client_name": "edge_device_1", 
+    "source_name": "client_1", 
+    "destination_name": "gateway_1", 
     "private_network_addresses": "192.168.1.1,192.168.1.2,192.168.1.3"
 }
 EOF

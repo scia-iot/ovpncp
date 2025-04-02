@@ -39,7 +39,7 @@ async def get_server(session: DBSession):
     if not server:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail='Server not found')
+            detail='Server not found!')
 
     return server
 
@@ -66,6 +66,12 @@ async def get_routes(session: DBSession):
 
 @router.post('/routes', status_code=status.HTTP_204_NO_CONTENT)
 async def add_route(request: RouteRequest, session: DBSession):
+    if not is_valid_address(request.network):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail='Only internal network address is allowed!'
+        )
+    
     server = await get_server(session)
     iproute.add(request.network, server.ip, server.dev)
 
@@ -73,7 +79,21 @@ async def add_route(request: RouteRequest, session: DBSession):
 @router.delete('/routes', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_route(network:str, session: DBSession):
     server = await get_server(session)
-    iproute.delete(network, server.ip, server.dev)
+    routes = iproute.list(server.dev)
+    
+    target = None
+    for route in routes:
+        if route.startswith(network):
+            target = route
+            break
+    
+    if target:
+        iproute.delete(target, server.dev)
+    else:    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Network "{network}" not found in routes!'
+    )
 
 
 def load_from_config():
@@ -94,3 +114,11 @@ def load_from_config():
         ip=h.compressed, server=server) for h in hosts]
 
     return server
+
+
+def is_valid_address(network):
+    try:
+        net = ipaddress.ip_network(network)
+        return net.is_private
+    except ValueError:
+        return False
