@@ -15,15 +15,15 @@ router = APIRouter()
 
 
 class RestrictedNetworkRequest(BaseModel):
-    source_client_name: str
-    destination_client_name: str
+    source_name: str
+    destination_name: str
     private_network_addresses: str | None = None
 
 
 @router.post('')
 async def create_restricted_network(request: RestrictedNetworkRequest, session: DBSession):
-    source = get_client_by_name(request.source_client_name, session)
-    destination = get_client_by_name(request.destination_client_name, session)
+    source = get_client_by_name(request.source_name, session)
+    destination = get_client_by_name(request.destination_name, session)
     
     if not source.virtual_address or not destination.virtual_address:
         raise HTTPException(
@@ -74,7 +74,7 @@ async def retrieve_restricted_network(network_id: int, session: DBSession):
     if not network:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Network with ID {network_id} not found')
+            detail=f'Network with ID {network_id} not found!')
         
     return network
 

@@ -21,7 +21,6 @@ def create_app_directory():
     if not os.path.exists(app_directory):
         os.makedirs(app_directory)
         os.makedirs(certs_directory)
-        os.makedirs(scripts_directory)
         logger.info('Created the app directory & subdirectories.')
 
 
@@ -30,7 +29,7 @@ def create_tables():
     logger.info('Created all tables, existing ones will be skipped.')
 
 
-def copy_scripts():
+def init_scripts():
     target_folder = Path(scripts_directory)
     with importlib.resources.path('sciaiot.ovpncp', 'scripts') as source_path:
         if target_folder.exists():

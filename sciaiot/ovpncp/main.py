@@ -5,7 +5,11 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from sciaiot.ovpncp.dependencies import copy_scripts, create_app_directory, create_tables
+from sciaiot.ovpncp.dependencies import (
+    create_app_directory,
+    create_tables,
+    init_scripts,
+)
 from sciaiot.ovpncp.routes import client, network, server
 
 log_config_path = importlib.resources.files('sciaiot.ovpncp').joinpath('log.yml')
@@ -17,7 +21,7 @@ async def lifespan(app: FastAPI):
     # startup
     create_app_directory()
     create_tables()
-    copy_scripts()
+    init_scripts()
     logger.info('Startup events finished.')
 
     yield

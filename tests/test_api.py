@@ -27,7 +27,7 @@ def client_fixture(db_session):
 def test_init_server(mock_open, client: TestClient):
     response = client.get('/server')
     assert response.status_code == 404
-    assert response.json() == {'detail': 'Server not found'}
+    assert response.json() == {'detail': 'Server not found!'}
 
     response = client.post('/server')
     assert response.status_code == 200
@@ -61,8 +61,8 @@ def test_get_service_health(mock_run, client: TestClient):
     assert health['period'] == '15s'
 
     mock_run.assert_called_once_with(
-        ['systemctl', 'status', 'openvpn@server'], 
-        capture_output=True, text=True, check=False
+        ['systemctl', 'status', 'openvpn'], 
+        capture_output=True, text=True, check=True
     )
 
 
@@ -91,12 +91,29 @@ def test_add_route(mock_add, client: TestClient):
     mock_add.assert_called_once_with('192.168.1.0/24', '10.8.0.1', 'tun0')
 
 
+def test_add_wrong_route(client: TestClient):
+    response = client.post('/server/routes', json={'network': 'invalid_address'})
+    assert response.status_code == 400
+    assert response.json() == {'detail': 'Only internal network address is allowed!'}
+
+
 @patch('sciaiot.ovpncp.utils.iproute.delete')
-def test_delete_route(mock_delete, client: TestClient):
+@patch('sciaiot.ovpncp.utils.iproute.list', return_value=['10.8.0.0/24 proto kernel scope link src 10.8.0.1', '192.168.1.0/24 via 10.8.0.1'])
+def test_delete_route(mock_list, mock_delete, client: TestClient):
     response = client.delete('/server/routes', params={'network': '192.168.1.0/24'})
     assert response.status_code == 204
     
-    mock_delete.assert_called_once_with('192.168.1.0/24', '10.8.0.1', 'tun0')
+    mock_list.assert_called_once_with('tun0')
+    mock_delete.assert_called_once_with('192.168.1.0/24 via 10.8.0.1', 'tun0')
+
+
+@patch('sciaiot.ovpncp.utils.iproute.list', return_value=['10.8.0.0/24 proto kernel scope link src 10.8.0.1'])
+def test_delete_wrong_route(mock_list, client: TestClient):
+    response = client.delete('/server/routes', params={'network': '192.168.1.0/24'})
+    assert response.status_code == 404
+    assert response.json() == {'detail': 'Network "192.168.1.0/24" not found in routes!'}
+    
+    mock_list.assert_called_once_with('tun0')
 
 
 cert_details = {
@@ -112,7 +129,7 @@ cert_details = {
 def test_create_client(mock_build_client, mock_read_client_cert, client: TestClient):
     response = client.get('/clients/test_client')
     assert response.status_code == 404
-    assert response.json() == {'detail': 'Client "test_client" not found'}
+    assert response.json() == {'detail': 'Client "test_client" not found!'}
 
     response = client.post('/clients', json={'name': 'test_client_1'})
     assert response.status_code == 200
@@ -164,7 +181,7 @@ def test_assign_virtual_address(mock_assign_client_ip, mock_add_iroute, client: 
         '/clients/test_client_1/assign-ip', json={'ip': '10.0.0.1'})
     assert response.status_code == 404
     assert response.json() == {
-        'detail': 'Virtual address with IP "10.0.0.1" not found'}
+        'detail': 'Virtual address with IP "10.0.0.1" not found!'}
 
     response = client.put(
         '/clients/test_client_1/assign-ip', json={'ip': '10.8.0.2'})
@@ -225,12 +242,12 @@ def test_start_connection(client: TestClient):
 def test_create_restricted_network(mock_list_rules, mock_apply_rules, client: TestClient):
     response = client.get('/networks/1')
     assert response.status_code == 404
-    assert response.json() == {'detail': 'Network with ID 1 not found'}
+    assert response.json() == {'detail': 'Network with ID 1 not found!'}
 
     response = client.post(
         '/networks',
-        json={'source_client_name': 'test_client_1',
-              'destination_client_name': 'test_client_2',
+        json={'source_name': 'test_client_1',
+              'destination_name': 'test_client_2',
               'private_network_addresses': ''}
     )
     assert response.status_code == 200
@@ -251,7 +268,7 @@ def test_create_restricted_network(mock_list_rules, mock_apply_rules, client: Te
 def test_create_restricted_network_fail(mock_get_client_by_name, client: TestClient):
     response = client.post(
         '/networks',
-        json={'source_client_name': 'N/A', 'destination_client_name': 'N/A'}
+        json={'source_name': 'N/A', 'destination_name': 'N/A'}
     )
     assert response.status_code == 412
 
@@ -264,8 +281,8 @@ def test_create_restricted_network_fail(mock_get_client_by_name, client: TestCli
 def test_create_restricted_network_with_private_network_addresses(mock_list_rules, mock_apply_rules, mock_push_client_routes, client: TestClient):
     response = client.post(
         '/networks',
-        json={'source_client_name': 'test_client_1',
-              'destination_client_name': 'test_gateway_1',
+        json={'source_name': 'test_client_1',
+              'destination_name': 'test_gateway_1',
               'private_network_addresses': '192.168.1.1,192.168.1.2,192.168.1.3'}
     )
     assert response.status_code == 200
@@ -303,7 +320,7 @@ def test_close_connection(client: TestClient):
     )
     assert response.status_code == 404
     assert response.json() == {
-        'detail': 'Connection with client "test_client_1" from "10.8.0.2" not found'}
+        'detail': 'Connection with client "test_client_1" from "10.8.0.2" not found!'}
 
     response = client.put(
         '/clients/test_client_1/connections',

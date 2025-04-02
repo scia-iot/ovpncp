@@ -14,32 +14,22 @@ def test_list_routes(mock_run):
     assert len(routes) == 2
     
     mock_run.assert_called_once_with(
-        shell_command, capture_output=True, check=True)
+        shell_command, capture_output=True, text=True, check=True)
 
 
 @patch('subprocess.run')
 def test_add_route(mock_run):
-    shell_command = [
-        'ip', 'route', 
-        'add', '192.168.1.0/24', 
-        'via', '10.8.0.1', 
-        'dev', 'tun0'
-    ]
+    shell_command = 'ip route add 192.168.1.0/24 via 10.8.0.1 dev tun0'
     iproute.add('192.168.1.0/24', '10.8.0.1', "tun0")
     
     mock_run.assert_called_once_with(
-        shell_command, capture_output=True, check=True)
+        shell_command, shell=True, check=True)
 
 
 @patch('subprocess.run')
 def test_delete_route(mock_run):
-    shell_command = [
-        'ip', 'route', 
-        'del', '192.168.1.0/24', 
-        'via', '10.8.0.1', 
-        'dev', 'tun0'
-    ]
-    iproute.delete('192.168.1.0/24', '10.8.0.1', "tun0")
+    shell_command = 'ip route del 192.168.1.0/24 via 10.8.0.1 dev tun0'
+    iproute.delete('192.168.1.0/24 via 10.8.0.1', 'tun0')
     
     mock_run.assert_called_once_with(
-        shell_command, capture_output=True, check=True)
+        shell_command, shell=True, check=True)
