@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ovpncp"
-version = "0.1.1"
+version = "0.1.2"
+license = { text = "Apache License 2.0" }
 description = "OpenVPN Control Panel for Restricted Network."
 authors = [{ name = "Nick Yao", email = "ipaddict@outlook.com" }]
 dependencies = [
@@ -14,6 +15,14 @@ dependencies = [
     "sqlmodel",
     "uvicorn"
 ]
+
+[project.urls]
+Homepage = "https://github.com/scia-iot"
+Source = "https://github.com/scia-iot/ovpncp"
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
 
 [project.scripts]
 ovpncp = "sciaiot.ovpncp.main:run"
