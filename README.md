@@ -121,8 +121,8 @@ Create the network:
 curl -X POST http://127.0.0.1:8000/networks \ 
 --data-binary @- << EOF 
 {
-    "source_client_name": "client_1", 
-    "destination_client_name": "edge_device_1",
+    "source_name": "client_1", 
+    "destination_name": "edge_device_1",
 }
 EOF
 ```

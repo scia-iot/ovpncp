@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ovpncp"
-version = "0.1.2"
+version = "0.1.3"
 license = { text = "Apache License 2.0" }
 description = "OpenVPN Control Panel for Restricted Network."
 authors = [{ name = "Nick Yao", email = "ipaddict@outlook.com" }]
