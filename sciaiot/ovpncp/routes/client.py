@@ -183,9 +183,10 @@ async def close_connection(client_name: str, request: CloseConnectionRequest, se
     client = get_client_by_name(client_name, session)
     statement = select(Connection).where(
         Connection.remote_address == request.remote_address,
-        Connection.client_id == client.id
-    )
-    connection = session.exec(statement).one_or_none()
+        Connection.client_id == client.id,
+        Connection.disconnected_time == None  # noqa: E711
+    ).order_by(Connection.connected_time.desc()) # type: ignore
+    connection = session.exec(statement).first()
     if not connection:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
