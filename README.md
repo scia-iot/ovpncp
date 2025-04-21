@@ -163,8 +163,12 @@ Register this app on Azure Entra ID first, then sets three ENVs to enable the se
 
 1. `TENANT_ID` - the tenant ID of Azure Entra ID directory.
 
-2. `APP_CLIENT_ID` - the application (client) ID of this app that registered
+2. `APP_CLIENT_ID` - the application (client) ID of this app that registered.
 
-3. `APP_ROLE` - the app role assigned by this app
+3. `APP_ROLE` - the app role assigned by this app.
 
-Notice: for client app, the optional claim `aud` of token type `Access` must be enabled on the `Token configuration` of client app registration.
+Notice: for client app, two things must be configured on the client app registration:
+
+1. enable the optional claim `aud` of token type `Access` on the `Token configuration`;
+
+2. add the permission of this app on the `API permissions`.
