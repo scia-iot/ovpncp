@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,7 @@ from sciaiot.ovpncp.dependencies import get_session
 from sciaiot.ovpncp.routes.client import get_client_by_name
 from sciaiot.ovpncp.utils import iptables, openvpn
 
+logger = logging.getLogger(__name__)
 DBSession = Annotated[Session, Depends(get_session)]
 router = APIRouter()
 
@@ -22,10 +24,12 @@ class RestrictedNetworkRequest(BaseModel):
 
 @router.post('')
 async def create_restricted_network(request: RestrictedNetworkRequest, session: DBSession):
+    logger.info(f'Creating restricted network: {request.source_name} -> {request.destination_name}')
     source = get_client_by_name(request.source_name, session)
     destination = get_client_by_name(request.destination_name, session)
     
     if not source.virtual_address or not destination.virtual_address:
+        logger.error('Virtual address must assigned to both clients!')
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail='Virtual address must be assigned to both source and destination client!'
@@ -54,33 +58,40 @@ async def create_restricted_network(request: RestrictedNetworkRequest, session: 
     session.commit()
     session.refresh(network)
     
+    logger.info('Restricted network created successfully.')
     return network
 
 
 @router.get('')
 async def retrieve_restricted_networks(source_name: str, session: DBSession):
+    logger.info(f'Retrieving restricted networks for source {source_name}...')
     statement = select(RestrictedNetwork).where(
         RestrictedNetwork.source_name == source_name)
     networks = session.exec(statement).all()
+    logger.info(f'Retrieved {len(networks)} restricted networks.')
     return networks
 
 
 @router.get('/{network_id}')
 async def retrieve_restricted_network(network_id: int, session: DBSession):
+    logger.info(f'Retrieving restricted network with ID {network_id}...')
     statement = select(RestrictedNetwork).where(
         RestrictedNetwork.id == network_id)
     network = session.exec(statement).one_or_none()
     
     if not network:
+        logger.error(f'Network with ID {network_id} not found!')
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f'Network with ID {network_id} not found!')
-        
+    
+    logger.info(f'Retrieved restricted network with ID {network_id}.')
     return network
 
 
 @router.delete('/{network_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def drop_restricted_network(network_id: int, session: DBSession):
+    logger.info(f'Dropping restricted network with ID {network_id}...')
     network = await retrieve_restricted_network(network_id, session)
     network.end_time = datetime.now()
     
@@ -92,6 +103,9 @@ async def drop_restricted_network(network_id: int, session: DBSession):
         iptables.drop_rules(chain, all)
     else:
         iptables.drop_rules(chain, network.iptable_rules())
-
+    
     session.add(network)
     session.commit()
+    session.refresh(network)
+    
+    logger.info(f'Dropped restricted network with ID {network_id}.')
