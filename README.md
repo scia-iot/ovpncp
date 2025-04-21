@@ -34,16 +34,16 @@ client-connect /opt/ovpncp/scripts/client-connect.sh
 client-disconnect /opt/ovpncp/scripts/client-disconnect.sh
 ```
 
-Restart the server:
-
-```shell
-sudo systemctl restart openvpn
-```
-
 Start the application:
 
 ```shell
 sudo -i ovpncp
+```
+
+Restart the server:
+
+```shell
+sudo systemctl restart openvpn
 ```
 
 ## Basic Usage
@@ -60,16 +60,16 @@ Check the health of OpenVPN server:
 curl -X GET http://127.0.0.1:8000/server/health
 ```
 
-### Setup Client
+### Client Setup
 
-Create the client:
+Create a client:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/clients \ 
     -d '{"name": "client_1"}'
 ```
 
-Create the gateway client for private network:
+Create a gateway client with the private network behind it:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/clients \ 
@@ -106,16 +106,16 @@ Unassign IP from the client:
 curl -X DELETE http://127.0.0.1:8000/clients/client_1/unassign-ip
 ```
 
-### Setup Restricted Network
+### Restricted Network Setup
 
-IMPORTANT: 
+IMPORTANT:
 make sure drop all forwarding on `tun0` by default:
 
 ```shell
 sudo iptables -A FORWARD -i tun0 -j DROP
 ```
 
-Create the network:
+Create a restricted network between two clients:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/networks \ 
@@ -127,15 +127,26 @@ curl -X POST http://127.0.0.1:8000/networks \
 EOF
 ```
 
-Create the network with a gateway with private network behind it:
+Create a restricted network between a client and a gateway:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/networks \ 
 --data-binary @- << EOF 
 {
     "source_name": "client_1", 
-    "destination_name": "gateway_1", 
+    "destination_name": "edge_gateway_1", 
     "private_network_addresses": "192.168.1.1,192.168.1.2,192.168.1.3"
+}
+EOF
+```
+
+Add an IP route for allowing traffic on the OpenVPN server:
+
+```shell
+curl -X POST http://127.0.0.1:8000/server/routes \
+--data-binary @- << EOF 
+{
+    "network": 192.168.1.0/24"
 }
 EOF
 ```
@@ -145,3 +156,15 @@ Drop the network:
 ```shell
 curl -X DELETE http://127.0.0.1:8000/networks/1
 ```
+
+### [Optional] Enable Security with Azure Entra ID
+
+Register this app on Azure Entra ID first, then sets three ENVs to enable the security middleware:
+
+1. `TENANT_ID` - the tenant ID of Azure Entra ID directory.
+
+2. `APP_CLIENT_ID` - the application (client) ID of this app that registered
+
+3. `APP_ROLE` - the app role assigned by this app
+
+Notice: for client app, the optional claim `aud` of token type `Access` must be enabled on the `Token configuration` of client app registration.

@@ -29,6 +29,10 @@ def create_tables():
     logger.info('Created all tables, existing ones will be skipped.')
 
 
+def get_session():
+    with Session(engine) as session:
+        yield session
+
 def init_scripts():
     target_folder = Path(scripts_directory)
     with importlib.resources.path('sciaiot.ovpncp', 'scripts') as source_path:
@@ -41,8 +45,3 @@ def init_scripts():
         for path in target_folder.rglob('*.sh'):
             path.chmod(path.stat().st_mode | stat.S_IEXEC)
             logger.info(f'Made script {path} executable.')
-
-
-def get_session():
-    with Session(engine) as session:
-        yield session

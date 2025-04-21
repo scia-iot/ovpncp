@@ -4,6 +4,10 @@ PyYAML
 sqlmodel
 uvicorn
 
+# Security
+python-jose[cryptography]
+types-python-jose
+
 # Check & Test
 mypy
 pytest
