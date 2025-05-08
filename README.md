@@ -172,3 +172,11 @@ Notice: for client app, two things must be configured on the client app registra
 1. enable the optional claim `aud` of token type `Access` on the `Token configuration`;
 
 2. add the permission of this app on the `API permissions`.
+
+### [Optional] Enable Cert Management with Azure Blob Storage
+
+1. Create a storage account on Azure Portal.
+
+2. Create a container named `ovpncp` on the storage account.
+
+3. Obtain the access key and set it to the `AZURE_STORAGE_CONNECTION_STRING`

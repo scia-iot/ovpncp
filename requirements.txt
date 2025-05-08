@@ -8,6 +8,9 @@ uvicorn
 python-jose[cryptography]
 types-python-jose
 
+# Storage
+azure-storage-blob
+
 # Check & Test
 mypy
 pytest

@@ -11,6 +11,7 @@ from sciaiot.ovpncp.dependencies import (
     init_scripts,
 )
 from sciaiot.ovpncp.middlewares.azure_security import azure_security_middleware
+from sciaiot.ovpncp.middlewares.azure_storage import azure_storage_middleware
 from sciaiot.ovpncp.routes import client, network, server
 
 log_config_path = importlib.resources.files('sciaiot.ovpncp').joinpath('log.yml')
@@ -31,7 +32,10 @@ async def lifespan(app: FastAPI):
     logger.info('Shutdown events finished.')
 
 app = FastAPI(lifespan=lifespan)
+
 app.middleware('http')(azure_security_middleware)
+app.middleware('http')(azure_storage_middleware)
+
 app.include_router(server.router, prefix='/server', tags=['server'])
 app.include_router(client.router, prefix='/clients', tags=['client'])
 app.include_router(network.router, prefix='/networks', tags=['server'])

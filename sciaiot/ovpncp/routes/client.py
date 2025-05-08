@@ -87,7 +87,7 @@ async def package_client_cert(client_name: str, session: DBSession):
     client = get_client_by_name(client_name, session)
     archive = openvpn.package_client_cert(client.name, dependencies.certs_directory)
     logger.info('Client certificate packaged successfully!')
-    return { 'file': archive }
+    return { 'file_path': archive }
 
 
 @router.get('/{client_name}/download-cert')

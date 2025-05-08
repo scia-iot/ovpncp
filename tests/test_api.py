@@ -405,13 +405,13 @@ def test_get_client(client: TestClient):
     assert len(content['cert']) is not None
 
 
-@patch('sciaiot.ovpncp.utils.openvpn.package_client_cert', return_value='test_client_1.zip')
+@patch('sciaiot.ovpncp.utils.openvpn.package_client_cert', return_value='/opt/ovpncp/certs/test_client_1.zip')
 def test_package_client_cert(mock_package_client_cert, client: TestClient):
     response = client.put('/clients/test_client_1/package-cert')
     assert response.status_code == 200
 
     content = response.json()
-    assert content['file'] == 'test_client_1.zip'
+    assert content['file_path'] == '/opt/ovpncp/certs/test_client_1.zip'
 
     mock_package_client_cert.assert_called_once_with(
         'test_client_1', '/opt/ovpncp/certs')
