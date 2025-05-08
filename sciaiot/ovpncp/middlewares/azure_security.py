@@ -97,21 +97,16 @@ def validate_token(request: Request):
 
 async def azure_security_middleware(request: Request, call_next):
     client_host = urlparse(str(request.url)).hostname
-    if client_host == "localhost" or client_host == "127.0.0.1":
-        response = await call_next(request)
-        return response
+    if client_host != "localhost" or client_host != "127.0.0.1":
+        if TENANT_ID and APP_CLIENT_ID and APP_ROLE:
+            try:
+                logger.info('Checking access token on Azure Entra ID...')
+                token_payload = validate_token(request)
+                request.state.token_payload = token_payload
+                logger.info('Security checking passed, continue to next step.')
+            except HTTPException as e:
+                logger.error('Security checking failed, aborting...')
+                return JSONResponse(status_code=e.status_code, content={'detail': e.detail})
     
-    if TENANT_ID and APP_CLIENT_ID and APP_ROLE:
-        try:
-            logger.info('Checking access token on Azure Entra ID...')
-            token_payload = validate_token(request)
-            request.state.token_payload = token_payload
-            logger.info('Security checking passed, continue to next step.')
-        except HTTPException as e:
-            logger.error('Security checking failed, aborting...')
-            return JSONResponse(status_code=e.status_code, content={'detail': e.detail})
-    else:
-        pass
-
     response = await call_next(request)
     return response

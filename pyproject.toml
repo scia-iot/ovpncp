@@ -21,6 +21,9 @@ security = [
     "python-jose[cryptography]",
     "types-python-jose"
 ]
+storage = [
+    "azure-storage-blob"
+]
 
 [project.urls]
 Homepage = "https://github.com/scia-iot"
