@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# optional middlewares
 app.middleware('http')(azure_security_middleware)
 app.middleware('http')(azure_storage_middleware)
 
