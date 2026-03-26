@@ -3,6 +3,7 @@ fastapi[all]
 PyYAML
 sqlmodel
 uvicorn
+psutil
 
 # Security
 python-jose[cryptography]

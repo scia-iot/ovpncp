@@ -5,6 +5,7 @@ import re
 import subprocess
 import zipfile
 
+import psutil
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
@@ -45,25 +46,47 @@ def get_server_config():
     return config
 
 
+easyrsa_dir = f"{openvpn_dir}/easy-rsa"
+
+
+def get_system_metrics():
+    """Get system metrics (CPU, Memory, Disk usage)."""
+    return {
+        "cpu_usage_percent": psutil.cpu_percent(interval=None),
+        "memory_usage_percent": psutil.virtual_memory().percent,
+        "disk_usage_percent": psutil.disk_usage("/").percent,
+    }
+
+
 def get_status():
     """Get the status of the OpenVPN server."""
 
     logger.info("Checking the status of OpenVPN server...")
-    result = subprocess.run(
-        ["systemctl", "status", "openvpn"], capture_output=True, text=True, check=True
-    )
+    try:
+        result = subprocess.run(
+            ["systemctl", "status", "openvpn"], capture_output=True, text=True, check=True
+        )
+        output = result.stdout
+    except subprocess.CalledProcessError as e:
+        output = e.stdout
 
-    match = status_pattern.search(result.stdout)
+    openvpn_service = {"status": default}
+    match = status_pattern.search(output)
     if match:
-        status = match.group(2)
-        time = match.group(3)
-        period = match.group(4)
+        openvpn_service = {
+            "status": match.group(2),
+            "time": match.group(3),
+            "period": match.group(4),
+        }
 
-        logger.info(f"OpenVPN server status: {status}")
-        return {"status": status, "time": time, "period": period}
+        logger.info(f"OpenVPN server status: {openvpn_service['status']}")
+    else:
+        logger.error("Failed to parse the output of systemctl status openvpn!")
 
-    logger.error("Failed to parse the output of systemctl status openvpn@server!")
-    return {"status": default}
+    return {
+        "openvpn_service": openvpn_service,
+        "system_metrics": get_system_metrics()
+    }
 
 
 def build_client(name: str):

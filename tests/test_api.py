@@ -56,13 +56,18 @@ def test_get_server(client: TestClient):
 @patch(
     "subprocess.run", return_value=MagicMock(stdout=test_openvpn.server_status_active)
 )
-def test_get_service_health(mock_run, client: TestClient):
+@patch("psutil.cpu_percent", return_value=10.5)
+@patch("psutil.virtual_memory", return_value=MagicMock(percent=45.2))
+@patch("psutil.disk_usage", return_value=MagicMock(percent=33.1))
+def test_get_service_health(mock_disk, mock_mem, mock_cpu, mock_run, client: TestClient):
     response = client.get("/server/health")
     assert response.status_code == 200
 
     health = response.json()
-    assert health["status"] == "active (running)"
-    assert health["period"] == "15s"
+    assert health["openvpn_service"]["status"] == "active (running)"
+    assert health["system_metrics"]["cpu_usage_percent"] == 10.5
+    assert health["system_metrics"]["memory_usage_percent"] == 45.2
+    assert health["system_metrics"]["disk_usage_percent"] == 33.1
 
     mock_run.assert_called_once_with(
         ["systemctl", "status", "openvpn"], capture_output=True, text=True, check=True
