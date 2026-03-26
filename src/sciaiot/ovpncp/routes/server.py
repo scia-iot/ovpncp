@@ -18,119 +18,118 @@ logger = logging.getLogger(__name__)
 DBSession = Annotated[Session, Depends(get_session)]
 router = APIRouter()
 
+
 class RouteRequest(BaseModel):
     network: str
 
 
-@router.post('', response_model=ServerWithVirtualAddresses)
+@router.post("", response_model=ServerWithVirtualAddresses)
 async def init_server(session: DBSession):
-    logger.info('Initializing the server...')
+    logger.info("Initializing the server...")
     server = load_from_config()
 
     session.add(server)
     session.commit()
     session.refresh(server)
 
-    logger.info('Server initialized successfully!')
+    logger.info("Server initialized successfully!")
     return server
 
 
-@router.get('')
+@router.get("")
 async def get_server(session: DBSession):
-    logger.info('Getting the server...')
+    logger.info("Getting the server...")
     server = session.exec(select(Server)).one_or_none()
 
     if not server:
-        logger.error('Server not initialized yet!')
+        logger.error("Server not initialized yet!")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Server not found!')
-    
-    logger.info('Server retrieved successfully!')
+            status_code=status.HTTP_404_NOT_FOUND, detail="Server not found!"
+        )
+
+    logger.info("Server retrieved successfully!")
     return server
 
 
-@router.get('/health')
+@router.get("/health")
 async def get_service_health():
-    logger.info('Checking the service health...')
+    logger.info("Checking the service health...")
     service_health = openvpn.get_status()
-    logger.info('Service health checked successfully!')
+    logger.info("Service health checked successfully!")
     return service_health
 
 
-@router.get('/assignable-virtual-addresses')
+@router.get("/assignable-virtual-addresses")
 async def get_assignable_virtual_addresses(session: DBSession):
-    logger.info('Getting the assignable virtual addresses...')
+    logger.info("Getting the assignable virtual addresses...")
     statement = select(VirtualAddress).where(VirtualAddress.client == None)  # noqa: E711, is doesn't work here...
     addresses = session.exec(statement).all()
-    logger.info(f'Found {len(addresses)} assignable virtual addresses.')
+    logger.info(f"Found {len(addresses)} assignable virtual addresses.")
     return addresses
 
 
-@router.get('/routes')
+@router.get("/routes")
 async def get_routes(session: DBSession):
-    logger.info('Getting the routes...')
+    logger.info("Getting the routes...")
     server = await get_server(session)
     routes = iproute.list(server.dev)
-    logger.info(f'Found {len(routes)} routes.')
+    logger.info(f"Found {len(routes)} routes.")
     return routes
 
 
-@router.post('/routes', status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/routes", status_code=status.HTTP_204_NO_CONTENT)
 async def add_route(request: RouteRequest, session: DBSession):
-    logger.info('Adding a route...')
+    logger.info("Adding a route...")
     if not is_valid_address(request.network):
-        logger.error(f'Invalid network address {request.network} used!')
+        logger.error(f"Invalid network address {request.network} used!")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail='Only internal network address is allowed!'
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only internal network address is allowed!",
         )
-    
+
     server = await get_server(session)
     iproute.add(request.network, server.ip, server.dev)
-    logger.info('Route added successfully!')
+    logger.info("Route added successfully!")
 
 
-@router.delete('/routes', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_route(network:str, session: DBSession):
-    logger.info('Deleting a route...')
+@router.delete("/routes", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_route(network: str, session: DBSession):
+    logger.info("Deleting a route...")
     server = await get_server(session)
     routes = iproute.list(server.dev)
-    
+
     target = None
     for route in routes:
         if route.startswith(network):
             target = route
             break
-    
+
     if target:
         iproute.delete(target, server.dev)
-        logger.info('Route deleted successfully!')
-    else:    
+        logger.info("Route deleted successfully!")
+    else:
         logger.error(f'Network "{network}" not found in routes!')
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Network "{network}" not found in routes!'
-    )
+            detail=f'Network "{network}" not found in routes!',
+        )
 
 
 def load_from_config():
     config = openvpn.get_server_config()
 
-    network_address, subnet_mask = config['server'].split()
-    network = ipaddress.ip_network(
-        f'{network_address}/{subnet_mask}', strict=False)
+    network_address, subnet_mask = config["server"].split()
+    network = ipaddress.ip_network(f"{network_address}/{subnet_mask}", strict=False)
     hosts = list(network.hosts())
 
-    config['network_address'] = network_address
-    config['subnet_mask'] = subnet_mask
-    config['ip'] = hosts.pop(0).compressed
-    config['dev'] = f'{config["dev"]}0'
+    config["network_address"] = network_address
+    config["subnet_mask"] = subnet_mask
+    config["ip"] = hosts.pop(0).compressed
+    config["dev"] = f"{config['dev']}0"
 
     server = Server(**config)
     server.virtual_addresses = [
-        VirtualAddress(ip=h.compressed, server=server) 
-        for h in hosts
+        VirtualAddress(ip=h.compressed, server=server) for h in hosts
     ]
 
     return server

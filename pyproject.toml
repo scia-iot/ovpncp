@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ovpncp"
-version = "0.1.5"
+version = "0.1.6"
 license = { text = "Apache License 2.0" }
 description = "OpenVPN Control Panel for Restricted Network."
 authors = [{ name = "Nick Yao", email = "ipaddict@outlook.com" }]
@@ -25,6 +25,12 @@ azure = [
     "ovpncp[security]",
     "azure-storage-blob"
 ]
+mysql = [
+    "mysql-connector-python"
+]
+postgres = [
+    "psycopg2-binary"
+]
 
 [project.urls]
 Homepage = "https://github.com/scia-iot"
@@ -38,6 +44,7 @@ content-type = "text/markdown"
 ovpncp = "sciaiot.ovpncp.main:run"
 
 [tool.setuptools.packages.find]
+where = ["src"]
 exclude = [
     "*tests.*",
     "*tests"
@@ -45,3 +52,8 @@ exclude = [
 
 [tool.setuptools.package-data]
 sciaiot = ["**/*.yml", "**/*.sh"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]
