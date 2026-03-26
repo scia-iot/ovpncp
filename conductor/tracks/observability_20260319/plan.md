@@ -2,12 +2,12 @@
 
 ## Phase 1: Foundation & Logging
 
-- [ ] **Task: Configure structured JSON logging.**
+- [x] **Task: Configure structured JSON logging.** 8fb8327
     - [ ] Write unit tests to verify that logs are output in JSON format and contain expected fields.
     - [ ] Implement a JSON formatter for the application's logger.
     - [ ] Update `sciaiot.ovpncp.main` to initialize the structured logger.
     - [ ] Verify that logs are correctly formatted and respect the configured log level.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 1: Foundation & Logging' (Protocol in workflow.md)**
+- [~] **Task: Conductor - User Manual Verification 'Phase 1: Foundation & Logging' (Protocol in workflow.md)**
 
 ## Phase 2: Connection Tracking
 
