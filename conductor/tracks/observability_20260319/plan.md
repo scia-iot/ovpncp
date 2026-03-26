@@ -32,3 +32,6 @@
     - [x] Add the service status to the health check response.
 - [x] **Task: Add system metrics to /server/health.** (Cancelled - kept simple as requested)
 - [x] **Task: Conductor - User Manual Verification 'Phase 3: Enhanced Health & Metrics' (Protocol in workflow.md)** d3f0197
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 2aefe49
