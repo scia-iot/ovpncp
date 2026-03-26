@@ -5,7 +5,6 @@ import re
 import subprocess
 import zipfile
 
-import psutil
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
@@ -49,15 +48,6 @@ def get_server_config():
 easyrsa_dir = f"{openvpn_dir}/easy-rsa"
 
 
-def get_system_metrics():
-    """Get system metrics (CPU, Memory, Disk usage)."""
-    return {
-        "cpu_usage_percent": psutil.cpu_percent(interval=None),
-        "memory_usage_percent": psutil.virtual_memory().percent,
-        "disk_usage_percent": psutil.disk_usage("/").percent,
-    }
-
-
 def get_status():
     """Get the status of the OpenVPN server."""
 
@@ -83,10 +73,7 @@ def get_status():
     else:
         logger.error("Failed to parse the output of systemctl status openvpn!")
 
-    return {
-        "openvpn_service": openvpn_service,
-        "system_metrics": get_system_metrics()
-    }
+    return openvpn_service
 
 
 def build_client(name: str):
