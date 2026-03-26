@@ -20,6 +20,7 @@ from sciaiot.ovpncp.routes import client, network, server
 log_config_path = importlib.resources.files("sciaiot.ovpncp").joinpath("log.yml")
 
 def setup_logging():
+    """Initialize logging based on the environment configuration."""
     log_format = os.getenv("LOG_FORMAT", "json").lower()
     with log_config_path.open("r") as f:
         config = yaml.safe_load(f)

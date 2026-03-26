@@ -1,8 +1,13 @@
+"""Logging utilities for the OpenVPN Control Panel."""
 import json
 import logging
 
+
 class JSONFormatter(logging.Formatter):
-    def format(self, record):
+    """Formatter for JSON structured logging."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format the log record into a JSON string."""
         log_record = {
             "timestamp": self.formatTime(record, self.datefmt),
             "levelname": record.levelname,
