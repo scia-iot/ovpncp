@@ -1,18 +1,29 @@
+import json
 from unittest.mock import MagicMock, patch
+
 import pytest
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 
 from sciaiot.ovpncp.main import app
-from sciaiot.ovpncp.middlewares.azure_security import check_role, get_token, azure_security_middleware
+from sciaiot.ovpncp.middlewares.azure_security import (
+    azure_security_middleware,
+    check_role,
+    get_token,
+)
 
 client = TestClient(app)
 
 
 @patch("sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", "mocked_tenant_id")
-@patch("sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id")
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id"
+)
 @patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role")
-@patch("sciaiot.ovpncp.middlewares.azure_security.validate_token", return_value={"sub": "mocked_sub"})
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_security.validate_token",
+    return_value={"sub": "mocked_sub"},
+)
 def test_azure_security_middleware_success(mock_validate_token):
     # Success case should still work
     response = client.get("/")
@@ -22,9 +33,14 @@ def test_azure_security_middleware_success(mock_validate_token):
 
 
 @patch("sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", "mocked_tenant_id")
-@patch("sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id")
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id"
+)
 @patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role")
-@patch("sciaiot.ovpncp.middlewares.azure_security.validate_token", side_effect=HTTPException(status_code=401, detail="Mocked Exception"))
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_security.validate_token",
+    side_effect=HTTPException(status_code=401, detail="Mocked Exception"),
+)
 def test_azure_security_middleware_failure(mock_validate_token):
     response = client.get("/")
     assert response.status_code == 401
@@ -32,7 +48,9 @@ def test_azure_security_middleware_failure(mock_validate_token):
 
 
 @patch("sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", "mocked_tenant_id")
-@patch("sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id")
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id"
+)
 @patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role")
 @patch("sciaiot.ovpncp.middlewares.azure_security.validate_token")
 def test_azure_security_middleware_localhost_no_bypass(mock_validate_token):
@@ -40,13 +58,14 @@ def test_azure_security_middleware_localhost_no_bypass(mock_validate_token):
     request = MagicMock(spec=Request)
     request.url = MagicMock()
     request.url.__str__.return_value = "http://localhost:8000/"
-    
+
     async def call_next(req):
         return MagicMock()
 
     import asyncio
+
     asyncio.run(azure_security_middleware(request, call_next))
-    
+
     # validate_token MUST be called now
     mock_validate_token.assert_called_once()
 
@@ -57,15 +76,19 @@ def test_azure_security_middleware_missing_env_error():
     request = MagicMock(spec=Request)
     request.url = MagicMock()
     request.url.__str__.return_value = "http://example.com/"
-    
+
     async def call_next(req):
         return MagicMock()
 
     import asyncio
+
     response = asyncio.run(azure_security_middleware(request, call_next))
-    
+
     assert response.status_code == 500
-    assert "Authentication service is misconfigured" in json.loads(response.body.decode())["detail"]
+    assert (
+        "Authentication service is misconfigured"
+        in json.loads(response.body.decode())["detail"]
+    )
 
 
 def test_get_token_valid():
@@ -84,18 +107,22 @@ def test_get_token_no_authorization_header():
 
 
 @patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role")
-@patch("sciaiot.ovpncp.middlewares.azure_security.jwt.get_unverified_claims", return_value={"roles": ["mocked_app_role"]})
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_security.jwt.get_unverified_claims",
+    return_value={"roles": ["mocked_app_role"]},
+)
 def test_check_role_valid(mock_get_unverified_claims):
     token = "some_token"
     check_role(token)
 
 
 @patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role")
-@patch("sciaiot.ovpncp.middlewares.azure_security.jwt.get_unverified_claims", return_value={})
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_security.jwt.get_unverified_claims",
+    return_value={},
+)
 def test_check_role_incorrect(mocked_get_unverified_claims):
     token = "some_token"
     with pytest.raises(HTTPException) as exc:
         check_role(token)
     assert exc.value.status_code == 403
-
-import json

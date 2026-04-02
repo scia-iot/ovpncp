@@ -1,11 +1,7 @@
-import zipfile
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.x509.oid import NameOID
 
 from sciaiot.ovpncp.utils.openvpn import (
     add_iroute,
@@ -58,7 +54,7 @@ def test_get_server_config(mock_open):
     configs = get_server_config()
     assert configs is not None
     # Adjust count if server_config_lines was simplified
-    # assert len(configs) == 23 
+    # assert len(configs) == 23
 
     mock_open.assert_called_with("/etc/openvpn/server.conf", "r")
 
@@ -276,6 +272,7 @@ GLOBAL STATS
 Max bcast/mcast queue length,0
 END
 """
+
 
 @patch("builtins.open", new_callable=mock_open, read_data=connection_lines)
 def test_list_connections(mock_open):

@@ -18,14 +18,25 @@ def client_fixture(db_session):
         return db_session
 
     app.dependency_overrides[get_session] = get_session_override
-    
-    with patch("sciaiot.ovpncp.middlewares.azure_security.validate_token", return_value={"sub": "mocked_sub"}):
-        with patch("sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", "mocked_tenant_id"):
-            with patch("sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id"):
-                with patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role"):
+
+    with patch(
+        "sciaiot.ovpncp.middlewares.azure_security.validate_token",
+        return_value={"sub": "mocked_sub"},
+    ):
+        with patch(
+            "sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", "mocked_tenant_id"
+        ):
+            with patch(
+                "sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID",
+                "mocked_app_client_id",
+            ):
+                with patch(
+                    "sciaiot.ovpncp.middlewares.azure_security.APP_ROLE",
+                    "mocked_app_role",
+                ):
                     client = TestClient(app)
                     yield client
-    
+
     app.dependency_overrides.clear()
 
 
@@ -544,25 +555,29 @@ def test_close_connection_privacy(client: TestClient):
     assert "***.***.***.***" in response.json()["detail"]
 
 
-@patch("sciaiot.ovpncp.middlewares.azure_storage.generate_blob_sas", return_value="sig=SECRET_TOKEN")
+@patch(
+    "sciaiot.ovpncp.middlewares.azure_storage.generate_blob_sas",
+    return_value="sig=SECRET_TOKEN",
+)
 @patch("sciaiot.ovpncp.middlewares.azure_storage.logger")
 def test_azure_storage_logging_privacy(mock_logger, mock_sas, client: TestClient):
     import sciaiot.ovpncp.middlewares.azure_storage as azure_storage
     from sciaiot.ovpncp.middlewares.azure_storage import handle_download
-    
+
     # Manually set attributes that might not be present if env var was missing
     azure_storage.account_name = "testaccount"
     azure_storage.account_key = "testkey"
-    
+
     request = MagicMock()
     request.path_params = {"client_name": "test_client"}
-    
+
     async def call_next(req):
         return MagicMock()
 
     import asyncio
+
     asyncio.run(handle_download(request, call_next))
-    
+
     # Verify that the logger was called with the SAS URL
     # In the fixed state, it should contain the masked token
     log_calls = [call[0][0] for call in mock_logger.info.call_args_list]

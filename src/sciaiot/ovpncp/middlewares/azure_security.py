@@ -59,7 +59,9 @@ def check_role(token: str):
 
 def validate_token(request: Request):
     if not all([TENANT_ID, APP_CLIENT_ID, APP_ROLE]):
-        logger.error("Azure Identity environment variables are not properly configured!")
+        logger.error(
+            "Azure Identity environment variables are not properly configured!"
+        )
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             "Authentication service is misconfigured.",
@@ -116,9 +118,7 @@ async def azure_security_middleware(request: Request, call_next):
         logger.info("Security checking passed, continue to next step.")
     except HTTPException as e:
         logger.error(f"Security checking failed: {e.detail}")
-        return JSONResponse(
-            status_code=e.status_code, content={"detail": e.detail}
-        )
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     except Exception as e:
         logger.error(f"Unexpected error during security check: {e}")
         return JSONResponse(
