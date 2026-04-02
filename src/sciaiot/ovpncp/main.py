@@ -1,8 +1,11 @@
 import importlib.resources
 import logging
+import logging.config
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
+import yaml
 from fastapi import FastAPI
 
 from sciaiot.ovpncp.dependencies import (
@@ -15,6 +18,23 @@ from sciaiot.ovpncp.middlewares.azure_storage import azure_storage_middleware
 from sciaiot.ovpncp.routes import client, network, server
 
 log_config_path = importlib.resources.files("sciaiot.ovpncp").joinpath("log.yml")
+
+
+def setup_logging():
+    """Initialize logging based on the environment configuration."""
+    log_format = os.getenv("LOG_FORMAT", "json").lower()
+    with log_config_path.open("r") as f:
+        config = yaml.safe_load(f)
+
+    # Update handlers to use the requested format if it exists in the config
+    if log_format in config.get("formatters", {}):
+        for handler in config.get("handlers", {}).values():
+            handler["formatter"] = log_format
+
+    logging.config.dictConfig(config)
+
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
 

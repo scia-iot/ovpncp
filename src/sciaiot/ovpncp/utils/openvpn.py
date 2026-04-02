@@ -45,25 +45,38 @@ def get_server_config():
     return config
 
 
+easyrsa_dir = f"{openvpn_dir}/easy-rsa"
+
+
 def get_status():
     """Get the status of the OpenVPN server."""
 
     logger.info("Checking the status of OpenVPN server...")
-    result = subprocess.run(
-        ["systemctl", "status", "openvpn"], capture_output=True, text=True, check=True
-    )
+    try:
+        result = subprocess.run(
+            ["systemctl", "status", "openvpn"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        output = result.stdout
+    except subprocess.CalledProcessError as e:
+        output = e.stdout
 
-    match = status_pattern.search(result.stdout)
+    openvpn_service = {"status": default}
+    match = status_pattern.search(output)
     if match:
-        status = match.group(2)
-        time = match.group(3)
-        period = match.group(4)
+        openvpn_service = {
+            "status": match.group(2),
+            "time": match.group(3),
+            "period": match.group(4),
+        }
 
-        logger.info(f"OpenVPN server status: {status}")
-        return {"status": status, "time": time, "period": period}
+        logger.info(f"OpenVPN server status: {openvpn_service['status']}")
+    else:
+        logger.error("Failed to parse the output of systemctl status openvpn!")
 
-    logger.error("Failed to parse the output of systemctl status openvpn@server!")
-    return {"status": default}
+    return openvpn_service
 
 
 def build_client(name: str):
