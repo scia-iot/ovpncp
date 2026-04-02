@@ -1,0 +1,30 @@
+# Implementation Plan: Security Fixes
+
+This plan outlines the steps to remediate all 7 security and privacy vulnerabilities identified in the security report.
+
+## Phase 1: Foundation & Privacy Utility
+- [ ] Task: Write failing tests for `mask_sensitive` utility in `tests/test_logging.py`.
+- [ ] Task: Implement `mask_sensitive` utility in `src/sciaiot/ovpncp/utils/logging.py` to redact SAS tokens and IP addresses.
+- [ ] Task: Conductor - User Manual Verification 'Foundation & Privacy Utility' (Protocol in workflow.md)
+
+## Phase 2: Command Injection Remediation
+- [ ] Task: Write failing tests in `tests/test_openvpn.py` to reproduce command injection in `openvpn.py`.
+- [ ] Task: Refactor `src/sciaiot/ovpncp/utils/openvpn.py` to use `subprocess.run` with a list of arguments and `shell=False`.
+- [ ] Task: Write failing tests in `tests/test_iptables.py` to reproduce command injection in `iptables.py`.
+- [ ] Task: Refactor `src/sciaiot/ovpncp/utils/iptables.py` to use `subprocess.run` with a list of arguments and `shell=False`.
+- [ ] Task: Write failing tests in `tests/test_iproute.py` to reproduce command injection in `iproute.py`.
+- [ ] Task: Refactor `src/sciaiot/ovpncp/utils/iproute.py` to use `subprocess.run` with a list of arguments and `shell=False`.
+- [ ] Task: Conductor - User Manual Verification 'Command Injection Remediation' (Protocol in workflow.md)
+
+## Phase 3: Path Traversal & Privacy Mitigation
+- [ ] Task: Write failing tests in `tests/test_openvpn.py` to reproduce path traversal in `openvpn.py`.
+- [ ] Task: Implement `name` validation and path sanitization in `src/sciaiot/ovpncp/utils/openvpn.py`.
+- [ ] Task: Write failing tests in `tests/test_api.py` to reproduce privacy leaks (SAS URL in logs, IP in error message).
+- [ ] Task: Update `src/sciaiot/ovpncp/middlewares/azure_storage.py` to mask SAS URLs in logs.
+- [ ] Task: Update `src/sciaiot/ovpncp/routes/client.py` to redact IP addresses in error messages.
+- [ ] Task: Conductor - User Manual Verification 'Path Traversal & Privacy Mitigation' (Protocol in workflow.md)
+
+## Phase 4: Authentication Strengthening
+- [ ] Task: Write failing tests in `tests/test_security.py` to reproduce bypass using `localhost` or missing environment variables.
+- [ ] Task: Update `src/sciaiot/ovpncp/middlewares/azure_security.py` to remove host-based bypass and enforce mandatory authentication if configured.
+- [ ] Task: Conductor - User Manual Verification 'Authentication Strengthening' (Protocol in workflow.md)
