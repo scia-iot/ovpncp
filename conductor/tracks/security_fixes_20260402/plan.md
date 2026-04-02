@@ -2,10 +2,10 @@
 
 This plan outlines the steps to remediate all 7 security and privacy vulnerabilities identified in the security report.
 
-## Phase 1: Foundation & Privacy Utility
-- [ ] Task: Write failing tests for `mask_sensitive` utility in `tests/test_logging.py`.
-- [ ] Task: Implement `mask_sensitive` utility in `src/sciaiot/ovpncp/utils/logging.py` to redact SAS tokens and IP addresses.
-- [ ] Task: Conductor - User Manual Verification 'Foundation & Privacy Utility' (Protocol in workflow.md)
+## Phase 1: Foundation & Privacy Utility [checkpoint: 05b63a9]
+- [x] Task: Write failing tests for `mask_sensitive` utility in `tests/test_logging.py`. [5a739bd]
+- [x] Task: Implement `mask_sensitive` utility in `src/sciaiot/ovpncp/utils/logging.py` to redact SAS tokens and IP addresses. [5a739bd]
+- [x] Task: Conductor - User Manual Verification 'Foundation & Privacy Utility' (Protocol in workflow.md)
 
 ## Phase 2: Command Injection Remediation
 - [ ] Task: Write failing tests in `tests/test_openvpn.py` to reproduce command injection in `openvpn.py`.
