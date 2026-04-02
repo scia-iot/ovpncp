@@ -18,8 +18,14 @@ def client_fixture(db_session):
         return db_session
 
     app.dependency_overrides[get_session] = get_session_override
-    client = TestClient(app)
-    yield client
+    
+    with patch("sciaiot.ovpncp.middlewares.azure_security.validate_token", return_value={"sub": "mocked_sub"}):
+        with patch("sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", "mocked_tenant_id"):
+            with patch("sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id"):
+                with patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role"):
+                    client = TestClient(app)
+                    yield client
+    
     app.dependency_overrides.clear()
 
 
