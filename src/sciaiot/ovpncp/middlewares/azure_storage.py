@@ -62,8 +62,10 @@ async def handle_upload(request: Request, call_next):
         )
 
     return response
+from sciaiot.ovpncp.utils.logging import mask_sensitive
 
-
+logger = logging.getLogger(__name__)
+...
 async def handle_download(request: Request, call_next):
     response = await call_next(request)
     client_name = request.path_params["client_name"]
@@ -82,9 +84,10 @@ async def handle_download(request: Request, call_next):
 
         blob_url = f"https://{account_name}.blob.core.windows.net/{CONTAINER_NAME}/{quote_plus(blob_name)}"
         sas_url = f"{blob_url}?{sas_token}"
-        logger.info(f"Generated SAS URL for blob: {sas_url}")
+        logger.info(f"Generated SAS URL for blob: {mask_sensitive(sas_url)}")
         response = JSONResponse(content={"url": sas_url}, status_code=200)
     except Exception as e:
+
         logger.error(f"Error generating SAS URL for blob: {e}")
         response = JSONResponse(
             content={"detail": "Error generating SAS URL for blob"}, status_code=500

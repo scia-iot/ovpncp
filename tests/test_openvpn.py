@@ -98,6 +98,13 @@ def test_validate_name():
         validate_name("client|test")
 
 
+def test_read_client_cert_traversal():
+    # This simulates a path traversal attempt
+    malicious_name = "../../../etc/passwd"
+    with pytest.raises(ValueError, match="Invalid name"):
+        read_client_cert(malicious_name)
+
+
 @patch("subprocess.run", return_value=MagicMock(returncode=0))
 def test_build_client_injection(mock_run):
     # This simulates a command injection attempt

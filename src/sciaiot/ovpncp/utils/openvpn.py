@@ -106,8 +106,8 @@ def build_client(name: str):
 def read_client_cert(name: str) -> dict:
     """Read the client certificate for the given client name and extract issued and expired times, issued_to, and issued_by."""
 
+    validate_name(name)
     try:
-        validate_name(name)
         logger.info(f"Reading certificate for client {name}...")
         cert_path = os.path.join(easyrsa_dir, "pki", "issued", f"{name}.crt")
 
