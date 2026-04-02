@@ -24,7 +24,7 @@ This plan outlines the steps to remediate all 7 security and privacy vulnerabili
 - [x] Task: Update `src/sciaiot/ovpncp/routes/client.py` to redact IP addresses in error messages. [1f0080f]
 - [x] Task: Conductor - User Manual Verification 'Path Traversal & Privacy Mitigation' (Protocol in workflow.md)
 
-## Phase 4: Authentication Strengthening
-- [~] Task: Write failing tests in `tests/test_security.py` to reproduce bypass using `localhost` or missing environment variables.
-- [ ] Task: Update `src/sciaiot/ovpncp/middlewares/azure_security.py` to remove host-based bypass and enforce mandatory authentication if configured.
-- [ ] Task: Conductor - User Manual Verification 'Authentication Strengthening' (Protocol in workflow.md)
+## Phase 4: Authentication Strengthening [checkpoint: 7660840]
+- [x] Task: Write failing tests in `tests/test_security.py` to reproduce bypass using `localhost` or missing environment variables. [0b9de91]
+- [x] Task: Update `src/sciaiot/ovpncp/middlewares/azure_security.py` to remove host-based bypass and enforce mandatory authentication if configured. [0b9de91]
+- [x] Task: Conductor - User Manual Verification 'Authentication Strengthening' (Protocol in workflow.md)
