@@ -16,16 +16,15 @@ This plan outlines the steps to remediate all 7 security and privacy vulnerabili
 - [x] Task: Refactor `src/sciaiot/ovpncp/utils/iproute.py` to use `subprocess.run` with a list of arguments and `shell=False`. [26edc99]
 - [x] Task: Conductor - User Manual Verification 'Command Injection Remediation' (Protocol in workflow.md)
 
-## Phase 3: Path Traversal & Privacy Mitigation
-- [~] Task: Write failing tests in `tests/test_openvpn.py` to reproduce path traversal in `openvpn.py`.
-
-- [ ] Task: Implement `name` validation and path sanitization in `src/sciaiot/ovpncp/utils/openvpn.py`.
-- [ ] Task: Write failing tests in `tests/test_api.py` to reproduce privacy leaks (SAS URL in logs, IP in error message).
-- [ ] Task: Update `src/sciaiot/ovpncp/middlewares/azure_storage.py` to mask SAS URLs in logs.
-- [ ] Task: Update `src/sciaiot/ovpncp/routes/client.py` to redact IP addresses in error messages.
-- [ ] Task: Conductor - User Manual Verification 'Path Traversal & Privacy Mitigation' (Protocol in workflow.md)
+## Phase 3: Path Traversal & Privacy Mitigation [checkpoint: 14b87ee]
+- [x] Task: Write failing tests in `tests/test_openvpn.py` to reproduce path traversal in `openvpn.py`. [1f0080f]
+- [x] Task: Implement `name` validation and path sanitization in `src/sciaiot/ovpncp/utils/openvpn.py`. [1f0080f]
+- [x] Task: Write failing tests in `tests/test_api.py` to reproduce privacy leaks (SAS URL in logs, IP in error message). [1f0080f]
+- [x] Task: Update `src/sciaiot/ovpncp/middlewares/azure_storage.py` to mask SAS URLs in logs. [1f0080f]
+- [x] Task: Update `src/sciaiot/ovpncp/routes/client.py` to redact IP addresses in error messages. [1f0080f]
+- [x] Task: Conductor - User Manual Verification 'Path Traversal & Privacy Mitigation' (Protocol in workflow.md)
 
 ## Phase 4: Authentication Strengthening
-- [ ] Task: Write failing tests in `tests/test_security.py` to reproduce bypass using `localhost` or missing environment variables.
+- [~] Task: Write failing tests in `tests/test_security.py` to reproduce bypass using `localhost` or missing environment variables.
 - [ ] Task: Update `src/sciaiot/ovpncp/middlewares/azure_security.py` to remove host-based bypass and enforce mandatory authentication if configured.
 - [ ] Task: Conductor - User Manual Verification 'Authentication Strengthening' (Protocol in workflow.md)
