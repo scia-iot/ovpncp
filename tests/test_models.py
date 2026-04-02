@@ -1,7 +1,7 @@
-import pytest
 from datetime import datetime
-from sqlmodel import Session, select
+from sqlmodel import Session
 from sciaiot.ovpncp.data.server import Client, Connection
+
 
 def test_connection_history_model(db_session: Session):
     # Testing that we can create a client and then a connection for them.
@@ -10,40 +10,43 @@ def test_connection_history_model(db_session: Session):
     db_session.add(client)
     db_session.commit()
     db_session.refresh(client)
-    
+
     start_time = datetime.now()
     conn = Connection(
-        client_id=client.id,
-        remote_address="1.2.3.4",
-        connected_time=start_time
+        client_id=client.id, remote_address="1.2.3.4", connected_time=start_time
     )
     db_session.add(conn)
     db_session.commit()
     db_session.refresh(conn)
-    
+
     assert conn.id is not None
     assert conn.client_id == client.id
     assert conn.remote_address == "1.2.3.4"
     assert conn.connected_time == start_time
     assert conn.disconnected_time is None
-    
+
     # Test updating disconnect time
     end_time = datetime.now()
     conn.disconnected_time = end_time
     db_session.add(conn)
     db_session.commit()
     db_session.refresh(conn)
-    
+
     assert conn.disconnected_time == end_time
+
 
 def test_connection_relationship(db_session: Session):
     client = Client(name="test_rel_user")
-    conn1 = Connection(remote_address="1.1.1.1", connected_time=datetime.now(), client=client)
-    conn2 = Connection(remote_address="2.2.2.2", connected_time=datetime.now(), client=client)
-    
+    Connection(
+        remote_address="1.1.1.1", connected_time=datetime.now(), client=client
+    )
+    Connection(
+        remote_address="2.2.2.2", connected_time=datetime.now(), client=client
+    )
+
     db_session.add(client)
     db_session.commit()
     db_session.refresh(client)
-    
+
     assert len(client.connections) == 2
     assert client.connections[0].remote_address in ["1.1.1.1", "2.2.2.2"]

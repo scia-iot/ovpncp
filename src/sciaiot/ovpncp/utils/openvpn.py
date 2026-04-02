@@ -54,7 +54,10 @@ def get_status():
     logger.info("Checking the status of OpenVPN server...")
     try:
         result = subprocess.run(
-            ["systemctl", "status", "openvpn"], capture_output=True, text=True, check=True
+            ["systemctl", "status", "openvpn"],
+            capture_output=True,
+            text=True,
+            check=True,
         )
         output = result.stdout
     except subprocess.CalledProcessError as e:

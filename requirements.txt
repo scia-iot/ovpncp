@@ -1,6 +1,7 @@
 cryptography
 fastapi[all]
 PyYAML
+types-PyYAML
 sqlmodel
 uvicorn
 

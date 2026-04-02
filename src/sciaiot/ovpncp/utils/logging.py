@@ -1,4 +1,5 @@
 """Logging utilities for the OpenVPN Control Panel."""
+
 import json
 import logging
 
