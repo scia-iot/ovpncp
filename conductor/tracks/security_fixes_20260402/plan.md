@@ -28,3 +28,6 @@ This plan outlines the steps to remediate all 7 security and privacy vulnerabili
 - [x] Task: Write failing tests in `tests/test_security.py` to reproduce bypass using `localhost` or missing environment variables. [0b9de91]
 - [x] Task: Update `src/sciaiot/ovpncp/middlewares/azure_security.py` to remove host-based bypass and enforce mandatory authentication if configured. [0b9de91]
 - [x] Task: Conductor - User Manual Verification 'Authentication Strengthening' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions [2d1a62e]
