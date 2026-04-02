@@ -1,7 +1,27 @@
 import logging
+import re
 import subprocess
 
 logger = logging.getLogger(__name__)
+
+
+def validate_chain(chain: str):
+    """Validate that the chain name is one of the standard iptables chains."""
+    valid_chains = ["INPUT", "OUTPUT", "FORWARD", "PREROUTING", "POSTROUTING"]
+    if chain not in valid_chains:
+        logger.error(f"Invalid chain '{chain}' provided!")
+        raise ValueError(f"Invalid chain '{chain}' provided!")
+
+
+def validate_rule(rule: str):
+    """
+    Perform basic validation on an iptables rule.
+    Since rules can be complex, we mainly want to prevent shell injection.
+    """
+    # Simple check to prevent multiple commands or pipe
+    if any(char in rule for char in [";", "&", "|", ">", "<", "$", "`"]):
+        logger.error(f"Malicious characters detected in rule: {rule}")
+        raise ValueError(f"Malicious characters detected in rule: {rule}")
 
 
 def list_rules(chain):
@@ -12,6 +32,7 @@ def list_rules(chain):
     :return: A list of strings, each representing a rule with its line number
     """
 
+    validate_chain(chain)
     logging.info(f"Listing iptables rules for chain: {chain}")
     # Execute the iptables command with the --line-numbers and --list options
     result = subprocess.run(
@@ -39,18 +60,21 @@ def apply_rules(chain, line_number, rules):
     :param rules: A list of iptables rules to insert (e.g., ['-p tcp --dport 80 -j ACCEPT', '-p udp --dport 53 -j ACCEPT'])
     """
 
-    # Construct a single shell command to insert all rules
-    commands = []
-    for rule in rules:
-        commands.append(f"iptables -I {chain} {line_number} {rule}")
-        line_number += 1
-    shell_command = " && ".join(commands)
+    validate_chain(chain)
+    # Execute each rule individually without shell=True
+    for i, rule in enumerate(rules):
+        validate_rule(rule)
+        current_line = line_number + i
+        # Split the rule into its components.
+        # This is a bit tricky as rule might have spaces within arguments.
+        # For our usage, rules are usually space-separated flags.
+        rule_parts = rule.split()
+        cmd = ["iptables", "-I", chain, str(current_line)] + rule_parts
 
-    logging.info(
-        f"Inserting iptables rules before line {line_number} in chain {chain}: {shell_command}"
-    )
-    subprocess.run(shell_command, shell=True, check=True)
-    logging.info(f"Successfully inserted all iptables rules before line {line_number}.")
+        logging.info(f"Executing iptables command: {' '.join(cmd)}")
+        subprocess.run(cmd, shell=False, check=True)
+
+    logging.info(f"Successfully inserted all iptables rules in chain {chain}.")
 
 
 def drop_rules(chain, rules):
@@ -60,12 +84,13 @@ def drop_rules(chain, rules):
     :param rules: A list of iptables rules to drop (e.g., ['-p tcp --dport 80 -j DROP', '-p udp --dport 53 -j DROP'])
     """
 
-    # Construct a single shell command to drop all rules
-    commands = []
+    validate_chain(chain)
     for rule in rules:
-        commands.append(f"iptables -D {chain} {rule}")
-    shell_command = " && ".join(commands)
+        validate_rule(rule)
+        rule_parts = rule.split()
+        cmd = ["iptables", "-D", chain] + rule_parts
 
-    logging.info(f"Dropping iptables rules in chain {chain}: {shell_command}")
-    subprocess.run(shell_command, shell=True, check=True)
+        logging.info(f"Executing iptables command: {' '.join(cmd)}")
+        subprocess.run(cmd, shell=False, check=True)
+
     logging.info(f"Successfully dropped all iptables rules in chain {chain}.")
