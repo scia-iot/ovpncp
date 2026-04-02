@@ -3,7 +3,23 @@ import logging
 import os
 from unittest.mock import patch
 from sciaiot.ovpncp.main import setup_logging
-from sciaiot.ovpncp.utils.logging import JSONFormatter
+from sciaiot.ovpncp.utils.logging import JSONFormatter, mask_sensitive
+
+
+def test_mask_sensitive_sas():
+    sas_url = "https://example.blob.core.windows.net/certs/client.ovpn?sv=2022-11-02&ss=b&srt=o&sp=r&se=2026-04-02T18:31:05Z&st=10:31:05Z&spr=https&sig=SENSITIVE_TOKEN"
+    masked = mask_sensitive(sas_url)
+    assert "sig=" in masked
+    assert "SENSITIVE_TOKEN" not in masked
+    assert "sig=***" in masked
+
+
+def test_mask_sensitive_ip():
+    message = "Connection from 1.2.3.4 failed"
+    masked = mask_sensitive(message)
+    assert "1.2.3.4" not in masked
+    assert "1.2.3.4" in message
+    assert "***.***.***.***" in masked
 
 
 def test_json_formatter():
