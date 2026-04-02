@@ -7,17 +7,18 @@ This plan outlines the steps to remediate all 7 security and privacy vulnerabili
 - [x] Task: Implement `mask_sensitive` utility in `src/sciaiot/ovpncp/utils/logging.py` to redact SAS tokens and IP addresses. [5a739bd]
 - [x] Task: Conductor - User Manual Verification 'Foundation & Privacy Utility' (Protocol in workflow.md)
 
-## Phase 2: Command Injection Remediation
-- [ ] Task: Write failing tests in `tests/test_openvpn.py` to reproduce command injection in `openvpn.py`.
-- [ ] Task: Refactor `src/sciaiot/ovpncp/utils/openvpn.py` to use `subprocess.run` with a list of arguments and `shell=False`.
-- [ ] Task: Write failing tests in `tests/test_iptables.py` to reproduce command injection in `iptables.py`.
-- [ ] Task: Refactor `src/sciaiot/ovpncp/utils/iptables.py` to use `subprocess.run` with a list of arguments and `shell=False`.
-- [ ] Task: Write failing tests in `tests/test_iproute.py` to reproduce command injection in `iproute.py`.
-- [ ] Task: Refactor `src/sciaiot/ovpncp/utils/iproute.py` to use `subprocess.run` with a list of arguments and `shell=False`.
-- [ ] Task: Conductor - User Manual Verification 'Command Injection Remediation' (Protocol in workflow.md)
+## Phase 2: Command Injection Remediation [checkpoint: a3ba695]
+- [x] Task: Write failing tests in `tests/test_openvpn.py` to reproduce command injection in `openvpn.py`. [9d97d29]
+- [x] Task: Refactor `src/sciaiot/ovpncp/utils/openvpn.py` to use `subprocess.run` with a list of arguments and `shell=False`. [9d97d29]
+- [x] Task: Write failing tests in `tests/test_iptables.py` to reproduce command injection in `iptables.py`. [4abd967]
+- [x] Task: Refactor `src/sciaiot/ovpncp/utils/iptables.py` to use `subprocess.run` with a list of arguments and `shell=False`. [4abd967]
+- [x] Task: Write failing tests in `tests/test_iproute.py` to reproduce command injection in `iproute.py`. [26edc99]
+- [x] Task: Refactor `src/sciaiot/ovpncp/utils/iproute.py` to use `subprocess.run` with a list of arguments and `shell=False`. [26edc99]
+- [x] Task: Conductor - User Manual Verification 'Command Injection Remediation' (Protocol in workflow.md)
 
 ## Phase 3: Path Traversal & Privacy Mitigation
-- [ ] Task: Write failing tests in `tests/test_openvpn.py` to reproduce path traversal in `openvpn.py`.
+- [~] Task: Write failing tests in `tests/test_openvpn.py` to reproduce path traversal in `openvpn.py`.
+
 - [ ] Task: Implement `name` validation and path sanitization in `src/sciaiot/ovpncp/utils/openvpn.py`.
 - [ ] Task: Write failing tests in `tests/test_api.py` to reproduce privacy leaks (SAS URL in logs, IP in error message).
 - [ ] Task: Update `src/sciaiot/ovpncp/middlewares/azure_storage.py` to mask SAS URLs in logs.
