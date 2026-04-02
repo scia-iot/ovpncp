@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-from urllib.parse import urlparse
 from urllib.request import urlopen
 
 from fastapi import HTTPException, Request, status
@@ -59,6 +58,13 @@ def check_role(token: str):
 
 
 def validate_token(request: Request):
+    if not all([TENANT_ID, APP_CLIENT_ID, APP_ROLE]):
+        logger.error("Azure Identity environment variables are not properly configured!")
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Authentication service is misconfigured.",
+        )
+
     token = get_token(request)
     check_role(token)
 
@@ -94,22 +100,31 @@ def validate_token(request: Request):
         except JWTClaimsError:
             logger.error("Incorrect claims!")
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect claims!")
+    else:
+        logger.error("Unable to find appropriate key for token validation.")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "Invalid authentication token."
+        )
 
 
 async def azure_security_middleware(request: Request, call_next):
-    client_host = urlparse(str(request.url)).hostname
-    if client_host != "localhost" and client_host != "127.0.0.1":
-        if TENANT_ID and APP_CLIENT_ID and APP_ROLE:
-            try:
-                logger.info("Checking access token on Azure Entra ID...")
-                token_payload = validate_token(request)
-                request.state.token_payload = token_payload
-                logger.info("Security checking passed, continue to next step.")
-            except HTTPException as e:
-                logger.error("Security checking failed, aborting...")
-                return JSONResponse(
-                    status_code=e.status_code, content={"detail": e.detail}
-                )
+    # Enforce security for all requests
+    try:
+        logger.info("Checking access token on Azure Entra ID...")
+        token_payload = validate_token(request)
+        request.state.token_payload = token_payload
+        logger.info("Security checking passed, continue to next step.")
+    except HTTPException as e:
+        logger.error(f"Security checking failed: {e.detail}")
+        return JSONResponse(
+            status_code=e.status_code, content={"detail": e.detail}
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during security check: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "An internal security error occurred."},
+        )
 
     response = await call_next(request)
     return response
