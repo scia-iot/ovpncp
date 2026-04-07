@@ -24,6 +24,7 @@ from sciaiot.ovpncp.data.server import (
 from sciaiot.ovpncp.dependencies import get_session
 from sciaiot.ovpncp.routes.server import get_server
 from sciaiot.ovpncp.utils import openvpn
+from sciaiot.ovpncp.utils.logging import mask_sensitive
 
 logger = logging.getLogger(__name__)
 DBSession = Annotated[Session, Depends(get_session)]
@@ -232,7 +233,7 @@ async def close_connection(
         logger.error("No active connection found for the given remote address!")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Connection with client "{client_name}" from "{request.remote_address}" not found!',
+            detail=f'Connection with client "{client_name}" from "{mask_sensitive(request.remote_address)}" not found!',
         )
 
     connection.disconnected_time = request.disconnected_time

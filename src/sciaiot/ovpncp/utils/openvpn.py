@@ -19,6 +19,13 @@ openvpn_log_dir = "/var/log/openvpn"
 easyrsa_dir = f"{openvpn_dir}/easy-rsa"
 
 
+def validate_name(name: str):
+    """Validate that the name only contains alphanumeric characters, underscores, and dashes."""
+    if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+        logger.error(f"Invalid name '{name}' provided!")
+        raise ValueError(f"Invalid name '{name}' provided!")
+
+
 def get_server_config():
     """Get the status of the OpenVPN server."""
 
@@ -43,9 +50,6 @@ def get_server_config():
 
     logger.info("OpenVPN server configuration read successfully.")
     return config
-
-
-easyrsa_dir = f"{openvpn_dir}/easy-rsa"
 
 
 def get_status():
@@ -82,11 +86,12 @@ def get_status():
 def build_client(name: str):
     """Build a client with the given name."""
 
+    validate_name(name)
     logger.info(f"Building client {name}...")
     result = subprocess.run(
-        f"./easyrsa --batch build-client-full {name} nopass",
+        ["./easyrsa", "--batch", "build-client-full", name, "nopass"],
         cwd=easyrsa_dir,
-        shell=True,
+        shell=False,
         check=True,
     )
 
@@ -101,9 +106,10 @@ def build_client(name: str):
 def read_client_cert(name: str) -> dict:
     """Read the client certificate for the given client name and extract issued and expired times, issued_to, and issued_by."""
 
+    validate_name(name)
     try:
         logger.info(f"Reading certificate for client {name}...")
-        cert_path = os.path.join(f"{easyrsa_dir}/pki/issued", f"{name}.crt")
+        cert_path = os.path.join(easyrsa_dir, "pki", "issued", f"{name}.crt")
 
         with open(cert_path, "rb") as file:
             cert_content = file.read()
@@ -130,6 +136,7 @@ def read_client_cert(name: str) -> dict:
 def package_client_cert(name: str, output_dir: str):
     """Package the client certificate and key files into a tar archive."""
 
+    validate_name(name)
     cert_dir = f"{easyrsa_dir}/pki"
     ca = f"{cert_dir}/ca.crt"
     pk = f"{cert_dir}/private/{name}.key"
@@ -151,11 +158,12 @@ def package_client_cert(name: str, output_dir: str):
 def renew_client_cert(name: str) -> dict:
     """Renew the client certificate for the given client name and read the renewed certificate details."""
 
+    validate_name(name)
     logger.info(f"Renewing client {name} certificate...")
     result = subprocess.run(
-        f"./easyrsa --batch revoke-renewed {name}",
+        ["./easyrsa", "--batch", "revoke-renewed", name],
         cwd=easyrsa_dir,
-        shell=True,
+        shell=False,
         check=True,
     )
 
@@ -171,9 +179,13 @@ def renew_client_cert(name: str) -> dict:
 def revoke_client(name: str):
     """Revoke the client certificate for the given client name and generate a new CRL to confirm the revocation."""
 
+    validate_name(name)
     logger.info(f"Revoking client {name}...")
     result = subprocess.run(
-        f"./easyrsa --batch revoke {name}", cwd=easyrsa_dir, shell=True, check=True
+        ["./easyrsa", "--batch", "revoke", name],
+        cwd=easyrsa_dir,
+        shell=False,
+        check=True,
     )
 
     if result.returncode == 0:
@@ -188,7 +200,10 @@ def generate_crl() -> bool:
     """Generate a new CRL."""
     logger.info("Generating CRL...")
     result = subprocess.run(
-        "./easyrsa --batch gen-crl", cwd=easyrsa_dir, shell=True, check=True
+        ["./easyrsa", "--batch", "gen-crl"],
+        cwd=easyrsa_dir,
+        shell=False,
+        check=True,
     )
 
     if result.returncode == 0:
@@ -202,9 +217,10 @@ def generate_crl() -> bool:
 def assign_client_ip(name: str, ip: str, subnet_mask: str):
     """Add a client with the given name and IP address to the OpenVPN server."""
 
+    validate_name(name)
     logger.info(f"Adding client {name} with IP address {ip} to OpenVPN server...")
 
-    config_path = f"{openvpn_dir}/ccd/{name}"
+    config_path = os.path.join(openvpn_dir, "ccd", name)
     with open(config_path, "w") as file:
         file.write(f"ifconfig-push {ip} {subnet_mask}\n")
 
@@ -216,9 +232,10 @@ def assign_client_ip(name: str, ip: str, subnet_mask: str):
 def unassign_client_ip(name: str):
     """Remove a client with the given name and IP address from the OpenVPN server."""
 
+    validate_name(name)
     logger.info(f'Removing client "{name}" IP from OpenVPN server...')
 
-    config_path = f"{openvpn_dir}/ccd/{name}"
+    config_path = os.path.join(openvpn_dir, "ccd", name)
     if os.path.exists(config_path):
         os.remove(config_path)
 
@@ -230,8 +247,10 @@ def unassign_client_ip(name: str):
 def add_iroute(name: str, rule: str):
     """Add a route to the OpenVPN server."""
 
+    validate_name(name)
     logger.info(f"Adding route to OpenVPN server for client {name}...")
-    with open(f"{openvpn_dir}/ccd/{name}", "a") as file:
+    config_path = os.path.join(openvpn_dir, "ccd", name)
+    with open(config_path, "a") as file:
         file.write(f"iroute {rule}\n")
     logger.info(
         f"Route to OpenVPN server for client {name} has been successfully added."
@@ -241,9 +260,10 @@ def add_iroute(name: str, rule: str):
 def remove_iroute(name: str, rule: str):
     """Remove a specific route from the OpenVPN server for a client."""
 
+    validate_name(name)
     logger.info(f"Removing route from OpenVPN server for client {name}...")
 
-    file_path = f"{openvpn_dir}/ccd/{name}"
+    file_path = os.path.join(openvpn_dir, "ccd", name)
     with open(file_path, "r") as file:
         lines = file.readlines()
 
@@ -259,8 +279,10 @@ def remove_iroute(name: str, rule: str):
 def push_client_routes(name: str, rules: list[str]):
     """Push a list of routes to the OpenVPN client."""
 
+    validate_name(name)
     logger.info(f"Pushing route to OpenVPN client {name}...")
-    with open(f"{openvpn_dir}/ccd/{name}", "a") as file:
+    config_path = os.path.join(openvpn_dir, "ccd", name)
+    with open(config_path, "a") as file:
         for rule in rules:
             file.write(f'push "route {rule}"\n')
     logger.info(f"Pushed {len(rules)} routes to OpenVPN client {name}.")
@@ -269,9 +291,10 @@ def push_client_routes(name: str, rules: list[str]):
 def pull_client_routes(name: str):
     """Pull all routes from the OpenVPN client."""
 
+    validate_name(name)
     logger.info(f"Pulling routes from OpenVPN client {name}...")
 
-    file_path = f"{openvpn_dir}/ccd/{name}"
+    file_path = os.path.join(openvpn_dir, "ccd", name)
     with open(file_path, "r") as file:
         lines = file.readlines()
 

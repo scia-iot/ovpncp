@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock, patch
-
+import pytest
 from sciaiot.ovpncp.utils import iproute
 
 mocked_routes = """10.8.0.0/24 proto kernel scope link src 10.8.0.1
@@ -19,16 +19,49 @@ def test_list_routes(mock_run):
 
 
 @patch("subprocess.run")
+def test_add_injection(mock_run):
+    malicious_network = "192.168.1.0/24; touch /tmp/iproute_injected"
+    with pytest.raises(ValueError, match="Invalid IP or network"):
+        iproute.add(malicious_network, "10.8.0.1", "tun0")
+
+    mock_run.assert_not_called()
+
+
+@patch("subprocess.run")
 def test_add_route(mock_run):
-    shell_command = "ip route add 192.168.1.0/24 via 10.8.0.1 dev tun0"
     iproute.add("192.168.1.0/24", "10.8.0.1", "tun0")
 
-    mock_run.assert_called_once_with(shell_command, shell=True, check=True)
+    mock_run.assert_called_once_with(
+        ["ip", "route", "add", "192.168.1.0/24", "via", "10.8.0.1", "dev", "tun0"],
+        shell=False,
+        check=True,
+    )
 
 
 @patch("subprocess.run")
 def test_delete_route(mock_run):
-    shell_command = "ip route del 192.168.1.0/24 via 10.8.0.1 dev tun0"
     iproute.delete("192.168.1.0/24 via 10.8.0.1", "tun0")
 
-    mock_run.assert_called_once_with(shell_command, shell=True, check=True)
+    mock_run.assert_called_once_with(
+        ["ip", "route", "del", "192.168.1.0/24", "via", "10.8.0.1", "dev", "tun0"],
+        shell=False,
+        check=True,
+    )
+
+
+def test_validate_ip_or_net():
+    from sciaiot.ovpncp.utils.iproute import validate_ip_or_net
+
+    validate_ip_or_net("1.2.3.4")
+    validate_ip_or_net("1.2.3.4/24")
+    with pytest.raises(ValueError):
+        validate_ip_or_net("invalid")
+
+
+def test_validate_dev():
+    from sciaiot.ovpncp.utils.iproute import validate_dev
+
+    validate_dev("tun0")
+    validate_dev("eth0")
+    with pytest.raises(ValueError):
+        validate_dev("tun0; touch")
