@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 import yaml
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from sciaiot.ovpncp.dependencies import (
     create_app_directory,
@@ -53,6 +54,23 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler to catch all unhandled errors."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "type": "/errors/internal-server-error",
+            "title": "Internal Server Error",
+            "status": 500,
+            "detail": "An unexpected error occurred on the server.",
+            "instance": str(request.url),
+        },
+    )
+
 
 # optional middlewares
 app.middleware("http")(azure_security_middleware)
