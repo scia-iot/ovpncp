@@ -16,6 +16,7 @@ The OpenVPN Control Panel (ovpncp) is a specialized API-driven platform designed
 - **Azure Integration:** Support for Entra ID (security) and Blob Storage (certificates).
 - **Certificate Management:** Automated packaging and distribution of client certificates.
 - **Database Backend:** SQLModel-based persistence for client and network configurations.
+- **Existing Client Import:** API endpoint to import and synchronize clients from existing Easy-RSA certificate directories.
 
 ## Target Audience
 - Users on the IoT Platform.
