@@ -246,6 +246,7 @@ async def close_connection(
 
 @router.post("/import")
 async def import_clients(session: DBSession):
+    """Import existing clients from Easy-RSA certificate directory."""
     logger.info("Importing existing clients from Easy-RSA...")
     discovered_names = openvpn.list_client_certs()
 
