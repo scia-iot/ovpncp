@@ -69,6 +69,12 @@ curl -X POST http://127.0.0.1:8000/clients \
     -d '{"name": "client_1"}'
 ```
 
+Import existing clients from Easy-RSA:
+
+```shell
+curl -X POST http://127.0.0.1:8000/clients/import
+```
+
 Create a gateway client with the private network behind it:
 
 ```shell
