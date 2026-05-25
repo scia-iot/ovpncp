@@ -9,5 +9,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Add a new API for importing all existing clients of the OpenVPN server.**
+- [x] **Track: Add a new API for importing all existing clients of the OpenVPN server.**
 *Link: [./tracks/import_clients_20260525/](./tracks/import_clients_20260525/)*
