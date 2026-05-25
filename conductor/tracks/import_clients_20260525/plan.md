@@ -1,9 +1,9 @@
 # Implementation Plan: Import Existing OpenVPN Clients
 
 ## Phase 1: Certificate Discovery Utility
-- [ ] Task: Write tests for a new function `list_client_certs` in `utils/openvpn.py` that returns a list of all client names from the `issued` directory.
-- [ ] Task: Implement `list_client_certs` to scan `/etc/openvpn/easy-rsa/pki/issued/` for `.crt` files and return the base names (Common Names).
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Certificate Discovery Utility' (Protocol in workflow.md)
+- [x] Task: Write tests for a new function `list_client_certs` in `utils/openvpn.py` that returns a list of all client names from the issued directory. 1e749dd
+- [x] Task: Implement `list_client_certs` to scan `/etc/openvpn/easy-rsa/pki/issued/` for `.crt` files and return the base names (Common Names). 1e749dd
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Certificate Discovery Utility' (Protocol in workflow.md)
 
 ## Phase 2: API Endpoint and Database Upsert
 - [ ] Task: Write tests for the `POST /api/clients/import` endpoint, ensuring it correctly creates or updates `Client` and `Cert` models.
