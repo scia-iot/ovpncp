@@ -227,6 +227,29 @@ def unassign_client_ip(name: str):
     )
 
 
+def read_client_ip(name: str) -> str | None:
+    """Read the assigned IP address for the given client from its ccd file."""
+
+    logger.info(f'Reading assigned IP for client "{name}" from ccd...')
+    config_path = f"{openvpn_dir}/ccd/{name}"
+
+    if not os.path.exists(config_path):
+        logger.info(f'No ccd file found for client "{name}".')
+        return None
+
+    try:
+        with open(config_path, "r") as file:
+            for line in file:
+                if line.startswith("ifconfig-push"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        return parts[1]
+    except Exception as e:
+        logger.error(f'Failed to read ccd file for client "{name}": {e}')
+
+    return None
+
+
 def add_iroute(name: str, rule: str):
     """Add a route to the OpenVPN server."""
 

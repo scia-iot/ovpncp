@@ -258,8 +258,14 @@ async def import_clients(session: DBSession):
         if not cert_details:
             continue
 
-        statement = select(Client).where(Client.name == name)
-        client = session.exec(statement).one_or_none()
+        assigned_ip = openvpn.read_client_ip(name)
+        virtual_address = None
+        if assigned_ip:
+            virtual_address = session.exec(
+                select(VirtualAddress).where(VirtualAddress.ip == assigned_ip)
+            ).one_or_none()
+
+        client = session.exec(select(Client).where(Client.name == name)).one_or_none()
 
         if client:
             # Update existing client's certificate
@@ -270,11 +276,18 @@ async def import_clients(session: DBSession):
             else:
                 cert = Cert(**cert_details, client=client)
                 session.add(cert)
+
+            if virtual_address:
+                client.virtual_address = virtual_address
+                session.add(client)
+
             updated_count += 1
         else:
             # Create new client and certificate
             client = Client(name=name)
             cert = Cert(**cert_details, client=client)
+            if virtual_address:
+                client.virtual_address = virtual_address
             session.add(client)
             session.add(cert)
             added_count += 1
