@@ -9,6 +9,8 @@ from fastapi import Request
 from fastapi.concurrency import iterate_in_threadpool
 from fastapi.responses import JSONResponse
 
+from sciaiot.ovpncp.utils.logging import mask_sensitive
+
 logger = logging.getLogger(__name__)
 
 STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -82,7 +84,7 @@ async def handle_download(request: Request, call_next):
 
         blob_url = f"https://{account_name}.blob.core.windows.net/{CONTAINER_NAME}/{quote_plus(blob_name)}"
         sas_url = f"{blob_url}?{sas_token}"
-        logger.info(f"Generated SAS URL for blob: {sas_url}")
+        logger.info(f"Generated SAS URL for blob: {mask_sensitive(sas_url)}")
         response = JSONResponse(content={"url": sas_url}, status_code=200)
     except Exception as e:
         logger.error(f"Error generating SAS URL for blob: {e}")

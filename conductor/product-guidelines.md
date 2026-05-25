@@ -17,3 +17,8 @@
 - **Architecture:** Prioritize a modular and maintainable design. Logic should be consolidated into clean abstractions rather than being spread across multiple layers.
 - **Maintainability:** Ensure that the codebase is easy to understand and extend. Follow established Python patterns and use type hinting extensively.
 - **Validation:** Every change must be thoroughly tested and validated against the core requirements. Prioritize functional correctness and architectural integrity.
+
+## Security & Privacy
+- **Input Validation:** All user-provided input must be strictly validated before being used in system commands or file operations to prevent injection and path traversal vulnerabilities.
+- **Privacy by Design:** Personally Identifiable Information (PII) and sensitive security tokens (e.g., SAS URLs, IP addresses) must be masked or redacted in logs and error messages.
+- **Secure Defaults:** The application should fail securely. Authentication and authorization must be enforced by default, and misconfigurations should prevent the service from starting or serving requests.
