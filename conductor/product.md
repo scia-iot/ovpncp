@@ -12,6 +12,7 @@ The OpenVPN Control Panel (ovpncp) is a specialized API-driven platform designed
 
 ## Key Features
 - **FastAPI-powered API:** Programmable interface for all management tasks.
+- **Global Exception Handling:** Standardized RFC 7807 compliance for robust and secure error reporting.
 - **Restricted Network Setup:** Use IPTables and OpenVPN to define fine-grained access controls.
 - **Azure Integration:** Support for Entra ID (security) and Blob Storage (certificates).
 - **Certificate Management:** Automated packaging and distribution of client certificates.

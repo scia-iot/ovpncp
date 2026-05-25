@@ -8,6 +8,7 @@
 - **Web Framework:** [FastAPI](https://fastapi.tiangolo.com/) - High-performance web framework for building APIs.
 - **Web Server:** [Uvicorn](https://www.uvicorn.org/) - ASGI server implementation.
 - **Serialization:** [Pydantic](https://docs.pydantic.dev/) (via FastAPI/SQLModel) - Data validation and settings management.
+- **Error Standard:** [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) - Problem Details for HTTP APIs.
 
 ## Database & Persistence
 - **ORM:** [SQLModel](https://sqlmodel.tiangolo.com/) - Python library for interacting with SQL databases using Python objects.
