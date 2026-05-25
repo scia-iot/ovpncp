@@ -37,12 +37,8 @@ def test_connection_history_model(db_session: Session):
 
 def test_connection_relationship(db_session: Session):
     client = Client(name="test_rel_user")
-    Connection(
-        remote_address="1.1.1.1", connected_time=datetime.now(), client=client
-    )
-    Connection(
-        remote_address="2.2.2.2", connected_time=datetime.now(), client=client
-    )
+    Connection(remote_address="1.1.1.1", connected_time=datetime.now(), client=client)
+    Connection(remote_address="2.2.2.2", connected_time=datetime.now(), client=client)
 
     db_session.add(client)
     db_session.commit()
