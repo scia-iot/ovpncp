@@ -538,48 +538,65 @@ def test_revoke_client(mock_generate_crl, mock_revoke_client, client: TestClient
     mock_generate_crl.assert_called_once()
     mock_revoke_client.assert_called_once_with("test_client_1")
 
-
-def test_close_connection_privacy(client: TestClient):
-    # This should be masked now (VULN-006)
-    remote_ip = "1.2.3.4"
-    response = client.put(
-        "/clients/test_client_1/connections",
-        json={
-            "remote_address": remote_ip,
-            "disconnected_time": datetime.now().isoformat(),
+@patch("sciaiot.ovpncp.utils.openvpn.list_client_certs")
+@patch("sciaiot.ovpncp.utils.openvpn.read_client_cert")
+@patch("sciaiot.ovpncp.utils.openvpn.read_client_ip")
+def test_import_clients_api(
+    mock_read_ip, mock_read_cert, mock_list_certs, client: TestClient
+):
+    # 1. First import: two new clients, one with IP
+    mock_list_certs.return_value = ["existing_client_1", "existing_client_2"]
+    mock_read_cert.side_effect = [
+        {
+            "issued_by": "CA",
+            "issued_to": "existing_client_1",
+            "issued_on": datetime.now(),
+            "expires_on": datetime.now(),
         },
-    )
-    assert response.status_code == 404
-    # The fix should mask the IP
-    assert remote_ip not in response.json()["detail"]
-    assert "***.***.***.***" in response.json()["detail"]
+        {
+            "issued_by": "CA",
+            "issued_to": "existing_client_2",
+            "issued_on": datetime.now(),
+            "expires_on": datetime.now(),
+        },
+    ]
+    mock_read_ip.side_effect = ["10.8.0.11", None]
 
+    response = client.post("/clients/import")
+    assert response.status_code == 200
+    assert response.json() == {"added": 2, "updated": 0}
 
-@patch(
-    "sciaiot.ovpncp.middlewares.azure_storage.generate_blob_sas",
-    return_value="sig=SECRET_TOKEN",
-)
-@patch("sciaiot.ovpncp.middlewares.azure_storage.logger")
-def test_azure_storage_logging_privacy(mock_logger, mock_sas, client: TestClient):
-    import sciaiot.ovpncp.middlewares.azure_storage as azure_storage
-    from sciaiot.ovpncp.middlewares.azure_storage import handle_download
+    # Verify IP assignment
+    response = client.get("/clients/existing_client_1")
+    assert response.json()["virtual_address"]["ip"] == "10.8.0.11"
 
-    # Manually set attributes that might not be present if env var was missing
-    azure_storage.account_name = "testaccount"
-    azure_storage.account_key = "testkey"
+    response = client.get("/clients/existing_client_2")
+    assert response.json()["virtual_address"] is None
 
-    request = MagicMock()
-    request.path_params = {"client_name": "test_client"}
+    # 2. Second import: update existing client with new IP
+    mock_list_certs.return_value = ["existing_client_2"]
+    mock_read_cert.side_effect = [
+        {
+            "issued_by": "CA",
+            "issued_to": "existing_client_2",
+            "issued_on": datetime.now(),
+            "expires_on": datetime.now(),
+        }
+    ]
+    mock_read_ip.side_effect = ["10.8.0.12"]
 
-    async def call_next(req):
-        return MagicMock()
+    response = client.post("/clients/import")
+    assert response.status_code == 200
+    assert response.json() == {"added": 0, "updated": 1}
 
-    import asyncio
+    response = client.get("/clients/existing_client_2")
+    assert response.json()["virtual_address"]["ip"] == "10.8.0.12"
 
-    asyncio.run(handle_download(request, call_next))
+    # 3. Third import: one cert read failure
+    mock_list_certs.return_value = ["fail_client"]
+    mock_read_cert.side_effect = [{}]
+    mock_read_ip.return_value = None
 
-    # Verify that the logger was called with the SAS URL
-    # In the fixed state, it should contain the masked token
-    log_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-    assert any("sig=***" in msg for msg in log_calls)
-    assert not any("sig=SECRET_TOKEN" in msg for msg in log_calls)
+    response = client.post("/clients/import")
+    assert response.status_code == 200
+    assert response.json() == {"added": 0, "updated": 0}

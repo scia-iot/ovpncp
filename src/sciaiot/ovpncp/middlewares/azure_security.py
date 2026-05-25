@@ -10,9 +10,9 @@ from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
 logger = logging.getLogger(__name__)
 
-TENANT_ID = os.environ.get("AZURE_IDENTITY_TENANT_ID")
-APP_CLIENT_ID = os.environ.get("AZURE_IDENTITY_APP_CLIENT_ID")
-APP_ROLE = os.environ.get("AZURE_IDENTITY_APP_ROLE")
+TENANT_ID = os.environ.get("AZURE_ENTRAID_TENANT_ID")
+APP_CLIENT_ID = os.environ.get("AZURE_ENTRAID_APP_CLIENT_ID")
+APP_ROLE = os.environ.get("AZURE_ENTRAID_APP_ROLE")
 
 
 def get_token(request: Request):

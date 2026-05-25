@@ -69,6 +69,12 @@ curl -X POST http://127.0.0.1:8000/clients \
     -d '{"name": "client_1"}'
 ```
 
+Import existing clients from Easy-RSA:
+
+```shell
+curl -X POST http://127.0.0.1:8000/clients/import
+```
+
 Create a gateway client with the private network behind it:
 
 ```shell
@@ -161,11 +167,11 @@ curl -X DELETE http://127.0.0.1:8000/networks/1
 
 Register this app on Azure Entra ID first, then sets three ENVs to enable the security middleware:
 
-1. `TENANT_ID` - the tenant ID of Azure Entra ID directory.
+1. `AZURE_ENTRAID_TENANT_ID` - the tenant ID of Azure Entra ID directory.
 
-2. `APP_CLIENT_ID` - the application (client) ID of this app that registered.
+2. `AZURE_ENTRAID_APP_CLIENT_ID` - the application (client) ID of this app that registered.
 
-3. `APP_ROLE` - the app role assigned by this app.
+3. `AZURE_ENTRAID_APP_ROLE` - the app role assigned by this app.
 
 Notice: for client app, two things must be configured on the client app registration:
 

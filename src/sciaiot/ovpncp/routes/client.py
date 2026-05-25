@@ -245,6 +245,59 @@ async def close_connection(
     return connection
 
 
+@router.post("/import")
+async def import_clients(session: DBSession):
+    """Import existing clients from Easy-RSA certificate directory."""
+    logger.info("Importing existing clients from Easy-RSA...")
+    discovered_names = openvpn.list_client_certs()
+
+    added_count = 0
+    updated_count = 0
+
+    for name in discovered_names:
+        cert_details = openvpn.read_client_cert(name)
+        if not cert_details:
+            continue
+
+        assigned_ip = openvpn.read_client_ip(name)
+        virtual_address = None
+        if assigned_ip:
+            virtual_address = session.exec(
+                select(VirtualAddress).where(VirtualAddress.ip == assigned_ip)
+            ).one_or_none()
+
+        client = session.exec(select(Client).where(Client.name == name)).one_or_none()
+
+        if client:
+            # Update existing client's certificate
+            if client.cert:
+                for key, value in cert_details.items():
+                    setattr(client.cert, key, value)
+                session.add(client.cert)
+            else:
+                cert = Cert(**cert_details, client=client)
+                session.add(cert)
+
+            if virtual_address:
+                client.virtual_address = virtual_address
+                session.add(client)
+
+            updated_count += 1
+        else:
+            # Create new client and certificate
+            client = Client(name=name)
+            cert = Cert(**cert_details, client=client)
+            if virtual_address:
+                client.virtual_address = virtual_address
+            session.add(client)
+            session.add(cert)
+            added_count += 1
+
+    session.commit()
+    logger.info(f"Import complete: {added_count} added, {updated_count} updated.")
+    return {"added": added_count, "updated": updated_count}
+
+
 def get_client_by_name(client_name: str, session: Session) -> Client:
     statement = select(Client).where(Client.name == client_name)
     client = session.exec(statement).one_or_none()
