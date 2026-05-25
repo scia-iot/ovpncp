@@ -282,6 +282,22 @@ def pull_client_routes(name: str):
     logger.info(f"Pulled all routes from OpenVPN client {name}.")
 
 
+def list_client_certs() -> list[str]:
+    """List all client certificate names from the Easy-RSA issued directory."""
+
+    logger.info("Listing all client certificates from Easy-RSA...")
+    issued_dir = f"{easyrsa_dir}/pki/issued"
+    try:
+        files = os.listdir(issued_dir)
+        # Extract the name without the .crt extension
+        names = [os.path.splitext(f)[0] for f in files if f.endswith(".crt")]
+        logger.info(f"Found {len(names)} client certificate(s).")
+        return names
+    except Exception as e:
+        logger.error(f"Failed to list client certificates: {e}")
+        return []
+
+
 def list_connections():
     """List the connections made by the clients to the OpenVPN server."""
 
