@@ -289,8 +289,12 @@ def list_client_certs() -> list[str]:
     issued_dir = f"{easyrsa_dir}/pki/issued"
     try:
         files = os.listdir(issued_dir)
-        # Extract the name without the .crt extension
-        names = [os.path.splitext(f)[0] for f in files if f.endswith(".crt")]
+        # Extract the name without the .crt extension, excluding 'server'
+        names = [
+            os.path.splitext(f)[0]
+            for f in files
+            if f.endswith(".crt") and f != "server.crt"
+        ]
         logger.info(f"Found {len(names)} client certificate(s).")
         return names
     except Exception as e:
