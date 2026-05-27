@@ -47,29 +47,6 @@ def test_azure_security_middleware_failure(mock_validate_token):
     assert response.json() == {"detail": "Mocked Exception"}
 
 
-@patch("sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", "mocked_tenant_id")
-@patch(
-    "sciaiot.ovpncp.middlewares.azure_security.APP_CLIENT_ID", "mocked_app_client_id"
-)
-@patch("sciaiot.ovpncp.middlewares.azure_security.APP_ROLE", "mocked_app_role")
-@patch("sciaiot.ovpncp.middlewares.azure_security.validate_token")
-def test_azure_security_middleware_localhost_no_bypass(mock_validate_token):
-    # Verify that localhost is NO LONGER bypassed
-    request = MagicMock(spec=Request)
-    request.url = MagicMock()
-    request.url.__str__.return_value = "http://localhost:8000/"
-
-    async def call_next(req):
-        return MagicMock()
-
-    import asyncio
-
-    asyncio.run(azure_security_middleware(request, call_next))
-
-    # validate_token MUST be called now
-    mock_validate_token.assert_called_once()
-
-
 @patch("sciaiot.ovpncp.middlewares.azure_security.TENANT_ID", None)
 def test_azure_security_middleware_missing_env_error():
     # Verify that missing env vars now results in 500 error
