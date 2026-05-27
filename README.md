@@ -66,7 +66,11 @@ Create a client:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/clients \ 
-    -d '{"name": "client_1"}'
+    --data-binary @- << EOF
+    {
+        "name": "client_1"
+    }
+    EOF
 ```
 
 Import existing clients from Easy-RSA:
@@ -79,12 +83,12 @@ Create a gateway client with the private network behind it:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/clients \ 
---data-binary @- << EOF 
-{
-    "name": "gateway_1", 
-    "cidr": "192.168.1.0/24"
-}
-EOF
+    --data-binary @- << EOF 
+    {
+        "name": "gateway_1", 
+        "cidr": "192.168.1.0/24"
+    }
+    EOF
 ```
 
 Package the client certificate:
@@ -103,7 +107,11 @@ Assign IP to the client:
 
 ```shell
 curl -X PUT http://127.0.0.1:8000/clients/client_1/assign-ip \ 
-    -d '{"ip": "10.8.0.2"}'
+    --data-binary @- << EOF  
+    {
+        "ip": "10.8.0.2"
+    }
+    EOF
 ```
 
 Unassign IP from the client:
@@ -125,36 +133,36 @@ Create a restricted network between two clients:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/networks \ 
---data-binary @- << EOF 
-{
-    "source_name": "client_1", 
-    "destination_name": "edge_device_1",
-}
-EOF
+    --data-binary @- << EOF 
+    {
+        "source_name": "client_1", 
+        "destination_name": "edge_device_1",
+    }
+    EOF
 ```
 
 Create a restricted network between a client and a gateway:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/networks \ 
---data-binary @- << EOF 
-{
-    "source_name": "client_1", 
-    "destination_name": "edge_gateway_1", 
-    "private_network_addresses": "192.168.1.1,192.168.1.2,192.168.1.3"
-}
-EOF
+    --data-binary @- << EOF 
+    {
+        "source_name": "client_1", 
+        "destination_name": "edge_gateway_1", 
+        "private_network_addresses": "192.168.1.1,192.168.1.2,192.168.1.3"
+    }
+    EOF
 ```
 
 Add an IP route for allowing traffic on the OpenVPN server:
 
 ```shell
 curl -X POST http://127.0.0.1:8000/server/routes \
---data-binary @- << EOF 
-{
-    "network": 192.168.1.0/24"
-}
-EOF
+    --data-binary @- << EOF 
+    {
+        "network": 192.168.1.0/24"
+    }
+    EOF
 ```
 
 Drop the network:
@@ -173,11 +181,24 @@ Register this app on Azure Entra ID first, then sets three ENVs to enable the se
 
 3. `AZURE_ENTRAID_APP_ROLE` - the app role assigned by this app.
 
-Notice: for client app, two things must be configured on the client app registration:
 
-1. enable the optional claim `aud` of token type `Access` on the `Token configuration`;
+Notice: for the consumer client app, two things must be configured on the client app registration:
 
-2. add the permission of this app on the `API permissions`.
+1. copy `Application ID URI` of the previous registered App.
+2. add permission of the previous registered App on the `API permissions`, and grant admin consent.
+
+Example of calling API with an access token:
+```shell
+curl -X POST -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "client_id=$AZURE_ENTRAID_CONSUMER_CLIENT_ID" \
+    -d "scope=api://$EXPOSED_API_ID/.default" \
+    -d "client_secret=$AZURE_ENTRAID_CONSUMER_CLIENT_SECRET" \
+    -d "grant_type=client_credentials" \
+    "https://login.microsoftonline.com/$AZURE_ENTRAID_TENANT_ID/oauth2/v2.0/token"
+```
+```shell
+curl -X POST http://REMOTE_HOST/clients -H "Authorization: Bearer $ACCESS_TOKEN"
+```
 
 ### [Optional] Enable Cert Management with Azure Blob Storage
 

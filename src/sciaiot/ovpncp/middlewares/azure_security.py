@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 from fastapi import HTTPException, Request, status
@@ -110,21 +111,26 @@ def validate_token(request: Request):
 
 
 async def azure_security_middleware(request: Request, call_next):
-    # Enforce security for all requests
-    try:
-        logger.info("Checking access token on Azure Entra ID...")
-        token_payload = validate_token(request)
-        request.state.token_payload = token_payload
-        logger.info("Security checking passed, continue to next step.")
-    except HTTPException as e:
-        logger.error(f"Security checking failed: {e.detail}")
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-    except Exception as e:
-        logger.error(f"Unexpected error during security check: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "An internal security error occurred."},
-        )
+    # Bypass the security checkings for localhost accessing, required for scripts of client connection
+    url = urlparse(str(request.url))
+    if url.hostname not in ["localhost", "127.0.0.1"] and url.path not in [
+        "/docs",
+        "/openapi.json",
+    ]:
+        try:
+            logger.info("Checking access token on Azure Entra ID...")
+            token_payload = validate_token(request)
+            request.state.token_payload = token_payload
+            logger.info("Security checking passed, continue to next step.")
+        except HTTPException as e:
+            logger.error(f"Security checking failed: {e.detail}")
+            return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+        except Exception as e:
+            logger.error(f"Unexpected error during security check: {e}")
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": "An internal security error occurred."},
+            )
 
     response = await call_next(request)
     return response

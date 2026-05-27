@@ -538,10 +538,11 @@ def test_revoke_client(mock_generate_crl, mock_revoke_client, client: TestClient
     mock_generate_crl.assert_called_once()
     mock_revoke_client.assert_called_once_with("test_client_1")
 
+
 @patch("sciaiot.ovpncp.utils.openvpn.list_client_certs")
 @patch("sciaiot.ovpncp.utils.openvpn.read_client_cert")
 @patch("sciaiot.ovpncp.utils.openvpn.read_client_ip")
-def test_import_clients_api(
+def test_import_clients(
     mock_read_ip, mock_read_cert, mock_list_certs, client: TestClient
 ):
     # 1. First import: two new clients, one with IP
