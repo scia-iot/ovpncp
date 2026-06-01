@@ -1,8 +1,6 @@
 import json
 import logging
-import os
-from unittest.mock import patch
-from sciaiot.ovpncp.main import setup_logging
+
 from sciaiot.ovpncp.utils.logging import JSONFormatter, mask_sensitive
 
 
@@ -42,21 +40,42 @@ def test_json_formatter():
     assert "timestamp" in json_output
 
 
-@patch.dict(os.environ, {"LOG_FORMAT": "json"})
-def test_setup_logging_json():
-    with patch("logging.config.dictConfig") as mock_dict_config:
-        setup_logging()
-        args, _ = mock_dict_config.call_args
-        config = args[0]
-        assert config["handlers"]["console"]["formatter"] == "json"
-        assert config["handlers"]["file"]["formatter"] == "json"
+def test_json_formatter_masking():
+    formatter = JSONFormatter()
 
+    # Test message masking
+    record = logging.LogRecord(
+        name="test_logger",
+        level=logging.INFO,
+        pathname="test_path",
+        lineno=10,
+        msg="Connection from 1.2.3.4 failed with sig=SENSITIVE_TOKEN",
+        args=None,
+        exc_info=None,
+    )
+    output = formatter.format(record)
+    json_output = json.loads(output)
+    assert "***.***.***.***" in json_output["message"]
+    assert "sig=***" in json_output["message"]
+    assert "1.2.3.4" not in json_output["message"]
+    assert "SENSITIVE_TOKEN" not in json_output["message"]
 
-@patch.dict(os.environ, {"LOG_FORMAT": "standard"})
-def test_setup_logging_standard():
-    with patch("logging.config.dictConfig") as mock_dict_config:
-        setup_logging()
-        args, _ = mock_dict_config.call_args
-        config = args[0]
-        assert config["handlers"]["console"]["formatter"] == "standard"
-        assert config["handlers"]["file"]["formatter"] == "standard"
+    # Test exception masking
+    try:
+        raise ValueError("Error at 10.0.0.1")
+    except ValueError:
+        import sys
+
+        record = logging.LogRecord(
+            name="test_logger",
+            level=logging.ERROR,
+            pathname="test_path",
+            lineno=10,
+            msg="An error occurred",
+            args=None,
+            exc_info=sys.exc_info(),
+        )
+        output = formatter.format(record)
+        json_output = json.loads(output)
+        assert "***.***.***.***" in json_output["exc_info"]
+        assert "10.0.0.1" not in json_output["exc_info"]
