@@ -1,3 +1,4 @@
+import importlib
 import importlib.resources
 import logging
 import logging.config
@@ -5,7 +6,6 @@ import os
 from contextlib import asynccontextmanager
 
 import uvicorn
-import yaml
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -14,30 +14,12 @@ from sciaiot.ovpncp.dependencies import (
     create_tables,
     init_scripts,
 )
-from sciaiot.ovpncp.middlewares.azure_security import azure_security_middleware
-from sciaiot.ovpncp.middlewares.azure_storage import azure_storage_middleware
 from sciaiot.ovpncp.routes import client, network, server
 
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = os.environ.get("PORT", "8000")
 LOG_CONFIG = importlib.resources.files("sciaiot.ovpncp").joinpath("log.yml")
 
-
-def setup_logging():
-    """Initialize logging based on the environment configuration."""
-    log_format = os.getenv("LOG_FORMAT", "json").lower()
-    with LOG_CONFIG.open("r") as f:
-        config = yaml.safe_load(f)
-
-    # Update handlers to use the requested format if it exists in the config
-    if log_format in config.get("formatters", {}):
-        for handler in config.get("handlers", {}).values():
-            handler["formatter"] = log_format
-
-    logging.config.dictConfig(config)
-
-
-setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -57,8 +39,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.middleware("http")(azure_security_middleware)
-app.middleware("http")(azure_storage_middleware)
+# Register optional middlewares
+for mw in ["azure_security", "azure_storage"]:
+    try:
+        module = importlib.import_module(f"sciaiot.ovpncp.middlewares.{mw}")
+        app.middleware("http")(getattr(module, f"{mw}_middleware"))
+    except ImportError:
+        logger.debug(f"Optional middleware {mw} not loaded: dependencies missing.")
 
 app.include_router(server.router, prefix="/server", tags=["server"])
 app.include_router(client.router, prefix="/clients", tags=["client"])

@@ -46,7 +46,41 @@ Restart the server:
 sudo systemctl restart openvpn
 ```
 
-## Basic Usage
+## Running as a systemd Service (Recommended)
+
+To ensure the application starts automatically on boot and restarts if it crashes:
+
+1. Create a service file at `/etc/systemd/system/ovpncp.service`:
+
+```ini
+[Unit]
+Description=OpenVPN Control Panel
+After=network.target openvpn.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+# Use 'which ovpncp' to find the absolute path if different
+ExecStart=/root/.local/bin/ovpncp
+# Path to your environment variables file
+EnvironmentFile=/opt/ovpncp/.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+2. Enable and start the service:
+
+```shell
+sudo systemctl daemon-reload
+sudo systemctl enable ovpncp
+sudo systemctl start ovpncp
+```
+
+## API - Basic Usage
 
 Init server by calling API with cURL:
 
@@ -189,14 +223,15 @@ Notice: for the consumer client app, two things must be configured on the client
 
 Example of calling API with an access token:
 ```shell
+# Request an access token 
 curl -X POST -H "Content-Type: application/x-www-form-urlencoded" \
     -d "client_id=$AZURE_ENTRAID_CONSUMER_CLIENT_ID" \
     -d "scope=api://$EXPOSED_API_ID/.default" \
     -d "client_secret=$AZURE_ENTRAID_CONSUMER_CLIENT_SECRET" \
     -d "grant_type=client_credentials" \
     "https://login.microsoftonline.com/$AZURE_ENTRAID_TENANT_ID/oauth2/v2.0/token"
-```
-```shell
+
+# Call an API
 curl -X POST http://REMOTE_HOST/clients -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
